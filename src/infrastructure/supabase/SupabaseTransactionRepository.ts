@@ -76,7 +76,9 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
                 `to_user_last_name.ilike.${searchPattern}`,
                 `to_user_email.ilike.${searchPattern}`,
                 `to_user_phone.ilike.${searchPattern}`,
-                `to_user_dni.ilike.${searchPattern}`
+                `to_user_dni.ilike.${searchPattern}`,
+                `from_holder_name.ilike.${searchPattern}`,
+                `to_holder_name.ilike.${searchPattern}`
             ];
 
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(options.search);
@@ -106,10 +108,8 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
             if (error) throw new Error(`Error fetching transactions: ${error.message}`);
 
             const mappedData = (data || []).map((tx: any) => {
-                const fromUserName = tx.from_user_first_name ? `${tx.from_user_first_name} ${tx.from_user_last_name}` : undefined;
-                const toUserName = tx.to_user_first_name ? `${tx.to_user_first_name} ${tx.to_user_last_name}` : undefined;
-
-                return this.mapToEntity(tx, fromUserName, toUserName);
+                // Titular (razón social para empresas) resuelto en la vista
+                return this.mapToEntity(tx, tx.from_holder_name || undefined, tx.to_holder_name || undefined);
             });
 
             return {
@@ -125,10 +125,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
         if (error) throw new Error(`Error fetching transactions: ${error.message}`);
 
         return (data || []).map((tx: any) => {
-            const fromUserName = tx.from_user_first_name ? `${tx.from_user_first_name} ${tx.from_user_last_name}` : undefined;
-            const toUserName = tx.to_user_first_name ? `${tx.to_user_first_name} ${tx.to_user_last_name}` : undefined;
-
-            return this.mapToEntity(tx, fromUserName, toUserName);
+            return this.mapToEntity(tx, tx.from_holder_name || undefined, tx.to_holder_name || undefined);
         });
     }
 
@@ -149,7 +146,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
             .from("users")
             .select("*", { count: "exact", head: true })
             .eq("role", "user")
-            .neq("verification_status", "suspended");
+            .eq("verification_status", "verified");
 
         if (activeError) throw new Error(`Error counting active users: ${activeError.message}`);
 

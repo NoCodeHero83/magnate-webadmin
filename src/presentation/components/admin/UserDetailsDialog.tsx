@@ -50,8 +50,12 @@ export function UserDetailsDialog({ user, open, onOpenChange, onReview }: UserDe
     setOpeningContract(true);
     try {
       const url = await userRepository.getContractUrl(user.contractRef);
-      if (tab) tab.location.href = url;
-      else window.open(url, "_blank", "noopener");
+      if (tab) {
+        tab.opener = null; // la página abierta no puede controlar el panel
+        tab.location.href = url;
+      } else {
+        toast.error("El navegador bloqueó la ventana. Habilita las ventanas emergentes para este sitio.");
+      }
     } catch (error: any) {
       tab?.close();
       toast.error(error?.message || "No se pudo abrir el contrato");

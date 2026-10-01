@@ -35,9 +35,12 @@ const PUBLIC_DOCUMENTS_MARKER = `/storage/v1/object/public/${DOCUMENTS_BUCKET}/`
 const USER_VIEW = "admin_user_list";
 
 const SEARCH_COLUMNS = [
-    "first_name", "last_name", "email", "dni", "phone",
+    "first_name", "last_name", "email", "dni", "phone", "cuit_cuil",
     "company_legal_name", "company_trade_name", "company_cuit",
 ];
+
+/** Columnas guardadas solo con dígitos (se buscan sin guiones ni puntos) */
+const NUMERIC_COLUMNS = ["dni", "cuit_cuil", "company_cuit"];
 
 export class SupabaseUserRepository implements IUserRepository {
     private mapToEntity(dbUser: DbUser): User {
@@ -79,7 +82,14 @@ export class SupabaseUserRepository implements IUserRepository {
         if (options?.search) {
             // Comas y paréntesis rompen la sintaxis del filtro .or()
             const search = options.search.replace(/[,()]/g, " ").trim();
-            const searchFilter = SEARCH_COLUMNS.map((col) => `${col}.ilike.%${search}%`).join(",");
+            const filters = SEARCH_COLUMNS.map((col) => `${col}.ilike.%${search}%`);
+
+            // "30-71234567-1" o "30.123.456" => buscar también solo los dígitos
+            const digits = search.replace(/\D/g, "");
+            if (digits && digits !== search && /^[\d\s.\-]+$/.test(search)) {
+                filters.push(...NUMERIC_COLUMNS.map((col) => `${col}.ilike.%${digits}%`));
+            }
+            const searchFilter = filters.join(",");
 
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search);
             query = query.or(isUuid ? `${searchFilter},id.eq.${search}` : searchFilter);
@@ -176,9 +186,8 @@ export class SupabaseUserRepository implements IUserRepository {
         });
 
         if (error) {
-            // Los errores de la BD vienen como "CODIGO: mensaje legible"
-            const idx = error.message.indexOf(":");
-            throw new Error(idx > -1 ? error.message.slice(idx + 1).trim() : error.message);
+            // Los errores de la RPC vienen como "CODIGO: mensaje legible"
+            throw new Error(error.message.replace(/^[A-Z_]+:\s*/, ""));
         }
     }
 
@@ -289,7 +298,8 @@ export class SupabaseUserRepository implements IUserRepository {
         const count = async (apply?: (q: any) => any): Promise<number> => {
             let q: any = supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "user");
             if (apply) q = apply(q);
-            const { count: c } = await q;
+            const { count: c, error } = await q;
+            if (error) throw new Error(`Error counting users: ${error.message}`);
             return c || 0;
         };
 

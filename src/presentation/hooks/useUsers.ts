@@ -39,7 +39,8 @@ export function useReviewUser() {
     return useMutation({
         mutationFn: ({ userId, decision, reason }: { userId: string; decision: "approve" | "reject"; reason?: string }) =>
             userRepository.reviewUser(userId, decision, reason),
-        onSuccess: () => {
+        // También si falla (ej. otro admin ya revisó la cuenta): refrescar el estado real
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["users"] });
             queryClient.invalidateQueries({ queryKey: ["user-reviews"] });
         },

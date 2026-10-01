@@ -46,15 +46,48 @@ import { Label } from "@/presentation/components/ui/label";
 import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download, Users as UsersIcon, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
+const STATUS_FILTERS = ["all", "verified", "pending", "rejected", "suspended"];
+const ACCOUNT_TYPE_FILTERS = ["all", "personal", "business"];
+
+const STATUS_LABELS: Record<string, string> = {
+  verified: "Activo",
+  pending: "Pendiente",
+  rejected: "Rechazado",
+  suspended: "Suspendido",
+};
+
+/** Escapa un valor para CSV y evita que Excel lo interprete como fórmula */
+const csvCell = (value: unknown) => {
+  let text = String(value ?? "");
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
 const Usuarios = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [searchParams] = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("estado") || "all");
-  const [accountTypeFilter, setAccountTypeFilter] = useState(searchParams.get("tipo") || "all");
   const [page, setPage] = useState(0);
   const pageSize = 10;
+  // Filtros en la URL (?estado=...&tipo=...): se pueden compartir, sobreviven a la recarga
+  // y el link "Usuarios" del menú los limpia
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get("estado") || "all";
+  const typeParam = searchParams.get("tipo") || "all";
+  const statusFilter = STATUS_FILTERS.includes(statusParam) ? statusParam : "all";
+  const accountTypeFilter = ACCOUNT_TYPE_FILTERS.includes(typeParam) ? typeParam : "all";
+
+  const setFilter = (param: "estado" | "tipo", value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") next.delete(param);
+      else next.set(param, value);
+      return next;
+    }, { replace: true });
+    setPage(0);
+  };
+  const setStatusFilter = (value: string) => setFilter("estado", value);
+  const setAccountTypeFilter = (value: string) => setFilter("tipo", value);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -71,6 +104,10 @@ const Usuarios = () => {
     page,
     pageSize,
   });
+
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, accountTypeFilter]);
 
   const { data: stats } = useUserStats();
 
@@ -209,14 +246,14 @@ const Usuarios = () => {
         u.businessProfile?.cuit,
         u.businessProfile?.entityTypeName,
         u.businessProfile?.incorporationDate,
-        u.verificationStatus,
+        STATUS_LABELS[u.verificationStatus] ?? u.verificationStatus,
         u.statusReason,
         new Date(u.createdAt).toLocaleDateString("es-AR"),
       ]);
 
       const csvContent = [headers, ...rows]
         .map((row) =>
-          row.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")
+          row.map(csvCell).join(",")
         )
         .join("\n");
 

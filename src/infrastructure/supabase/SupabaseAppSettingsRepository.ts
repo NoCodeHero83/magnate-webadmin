@@ -18,21 +18,20 @@ export class SupabaseAppSettingsRepository {
         if (error) throw new Error(`Error fetching app settings: ${error.message}`);
 
         const map = new Map((data || []).map((row) => [row.key, row.value]));
+        // Mismos valores por defecto que la BD (get_setting_bool) si falta la fila
         return {
-            requireApprovalBusiness: map.get("require_approval_business") === true,
+            requireApprovalBusiness: map.has("require_approval_business") ? map.get("require_approval_business") === true : true,
             requireApprovalPersonal: map.get("require_approval_personal") === true,
         };
     }
 
     async setBoolean(key: ApprovalSettingKey, value: boolean): Promise<void> {
         const { data: auth } = await supabase.auth.getUser();
-        const { data, error } = await supabase
+        // upsert: crea la fila si no existe
+        const { error } = await supabase
             .from("app_settings")
-            .update({ value, updated_at: new Date().toISOString(), updated_by: auth.user?.id ?? null })
-            .eq("key", key)
-            .select("key");
+            .upsert({ key, value, updated_at: new Date().toISOString(), updated_by: auth.user?.id ?? null }, { onConflict: "key" });
 
         if (error) throw new Error(`Error updating setting: ${error.message}`);
-        if (!data || data.length === 0) throw new Error("No se pudo guardar la configuración");
     }
 }
