@@ -26,6 +26,26 @@ export function useUserStats() {
     });
 }
 
+export function useUserReviews(userId: string | null) {
+    return useQuery({
+        queryKey: ["user-reviews", userId],
+        queryFn: () => userRepository.getReviews(userId!),
+        enabled: !!userId,
+    });
+}
+
+export function useReviewUser() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ userId, decision, reason }: { userId: string; decision: "approve" | "reject"; reason?: string }) =>
+            userRepository.reviewUser(userId, decision, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["users"] });
+            queryClient.invalidateQueries({ queryKey: ["user-reviews"] });
+        },
+    });
+}
+
 export function useAccountLimits(userId: string | null) {
     return useQuery({
         queryKey: ["account-limits", userId],

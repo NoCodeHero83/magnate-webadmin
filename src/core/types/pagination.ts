@@ -11,5 +11,6 @@ export interface QueryOptions {
     page?: number;
     pageSize?: number;
     status?: string;
+    accountType?: string;
     filterDoubleEntry?: boolean;
 }

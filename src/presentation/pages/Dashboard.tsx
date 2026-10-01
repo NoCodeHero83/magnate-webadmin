@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Header } from "@/presentation/components/admin/Header";
 import { StatsCard } from "@/presentation/components/admin/StatsCard";
 import { DataTable } from "@/presentation/components/admin/DataTable";
@@ -10,6 +11,7 @@ import {
   DollarSign,
   TrendingUp,
   UserX,
+  UserCheck,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -102,12 +104,12 @@ const Dashboard = () => {
         </div>
 
         {/* Fila 2 — Cards de usuarios */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Usuarios Totales"
             value={(userStats?.total || 0).toString()}
-            change={`${userStats?.active || 0} activos`}
-            changeType="positive"
+            change={`${userStats?.business || 0} empresas`}
+            changeType="neutral"
             icon={Users}
             iconColor="from-primary to-primary-light"
           />
@@ -119,6 +121,16 @@ const Dashboard = () => {
             icon={TrendingUp}
             iconColor="from-success/80 to-success"
           />
+          <Link to="/usuarios?estado=pending" className="block rounded-xl hover:opacity-90 transition-opacity">
+            <StatsCard
+              title="Pendientes de aprobación"
+              value={(userStats?.pending || 0).toString()}
+              change={userStats?.pending ? "Requieren revisión" : "Sin pendientes"}
+              changeType={userStats?.pending ? "negative" : "neutral"}
+              icon={UserCheck}
+              iconColor="from-warning/80 to-warning"
+            />
+          </Link>
           <StatsCard
             title="Usuarios Suspendidos"
             value={(userStats?.suspended || 0).toString()}

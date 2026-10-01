@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Header } from "@/presentation/components/admin/Header";
 import { DataTable } from "@/presentation/components/admin/DataTable";
@@ -7,7 +8,10 @@ import { Input } from "@/presentation/components/ui/input";
 import { Button } from "@/presentation/components/ui/button";
 import { useUsers, useUserStats, useAccountLimits, useUpdateAccountLimits } from "@/presentation/hooks/useUsers";
 import { useQueryClient } from "@tanstack/react-query";
-import { User } from "@/core/entities/User";
+import { User, getUserDisplayName } from "@/core/entities/User";
+import { AccountTypeBadge, ACCOUNT_TYPE_LABELS } from "@/presentation/components/admin/AccountTypeBadge";
+import { UserDetailsDialog } from "@/presentation/components/admin/UserDetailsDialog";
+import { ReviewUserDialog } from "@/presentation/components/admin/ReviewUserDialog";
 import { PaginatedResult } from "@/core/types/pagination";
 import {
   Select,
@@ -39,14 +43,16 @@ import {
   PaginationEllipsis,
 } from "@/presentation/components/ui/pagination";
 import { Label } from "@/presentation/components/ui/label";
-import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download } from "lucide-react";
+import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download, Users as UsersIcon, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const Usuarios = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("estado") || "all");
+  const [accountTypeFilter, setAccountTypeFilter] = useState(searchParams.get("tipo") || "all");
   const [page, setPage] = useState(0);
   const pageSize = 10;
 
@@ -61,6 +67,7 @@ const Usuarios = () => {
   const { data: result, isLoading, isFetching } = useUsers({
     search: debouncedSearch,
     status: statusFilter,
+    accountType: accountTypeFilter,
     page,
     pageSize,
   });
@@ -72,6 +79,8 @@ const Usuarios = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [limitsDialogOpen, setLimitsDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewDecision, setReviewDecision] = useState<"approve" | "reject">("approve");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Limit form state
@@ -93,6 +102,13 @@ const Usuarios = () => {
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
     setViewDialogOpen(true);
+  };
+
+  const handleOpenReview = (user: User, decision: "approve" | "reject") => {
+    setSelectedUser(user);
+    setReviewDecision(decision);
+    setViewDialogOpen(false);
+    setReviewDialogOpen(true);
   };
 
   const handleOpenLimits = (user: User) => {
@@ -157,27 +173,44 @@ const Usuarios = () => {
       const allData = await userRepo.getAll({
         search: debouncedSearch,
         status: statusFilter,
+        accountType: accountTypeFilter,
       });
       const allUsers = Array.isArray(allData) ? allData : (allData as any).data || [];
 
       const headers = [
         "ID",
+        "Tipo de cuenta",
         "Nombre",
         "Apellido",
         "Email",
         "Teléfono",
         "DNI",
+        "CUIT/CUIL",
+        "Razón social",
+        "Nombre de fantasía",
+        "CUIT empresa",
+        "Tipo societario",
+        "Fecha de inscripción",
         "Estado",
+        "Motivo",
         "Fecha Registro",
       ];
       const rows = allUsers.map((u: User) => [
         u.id,
+        ACCOUNT_TYPE_LABELS[u.accountType],
         u.firstName,
         u.lastName,
         u.email,
         u.phone,
         u.dni,
+        u.cuitCuil,
+        u.businessProfile?.legalName,
+        u.businessProfile?.tradeName,
+        u.businessProfile?.cuit,
+        u.businessProfile?.entityTypeName,
+        u.businessProfile?.incorporationDate,
         u.verificationStatus,
+        u.statusReason,
         new Date(u.createdAt).toLocaleDateString("es-AR"),
       ]);
 
@@ -193,7 +226,7 @@ const Usuarios = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `usuarios_${statusFilter}_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = `usuarios_${accountTypeFilter}_${statusFilter}_${new Date().toISOString().split("T")[0]}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       toast.success("CSV exportado correctamente");
@@ -211,29 +244,32 @@ const Usuarios = () => {
       header: "Usuario",
       render: (item: User) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground truncate">{`${item.firstName} ${item.lastName}`}</p>
-          <p className="text-xs text-muted-foreground truncate">{item.email}</p>
+          <p className="font-medium text-foreground truncate">{getUserDisplayName(item)}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {item.accountType === "business" ? `Rep.: ${item.firstName} ${item.lastName} · ` : ""}
+            {item.email}
+          </p>
         </div>
       ),
     },
     { key: "phone", header: "Teléfono", className: "hidden md:table-cell" },
-    { key: "dni", header: "DNI", className: "hidden lg:table-cell" },
     {
-      key: "verified",
-      header: "Verificado",
+      key: "dni",
+      header: "DNI / CUIT",
+      className: "hidden lg:table-cell font-mono text-xs",
+      render: (item: User) => item.businessProfile?.cuit || item.dni,
+    },
+    {
+      key: "accountType",
+      header: "Tipo",
       className: "hidden sm:table-cell",
-      render: (_item: User) => (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
-          <span className="h-2 w-2 rounded-full bg-success" />
-          Sí
-        </span>
-      ),
+      render: (item: User) => <AccountTypeBadge type={item.accountType} />,
     },
     {
       key: "status",
       header: "Estado",
       render: (item: User) => (
-        <StatusBadge status={item.verificationStatus as any} />
+        <StatusBadge status={item.verificationStatus} />
       ),
     },
     {
@@ -266,6 +302,23 @@ const Usuarios = () => {
             >
               <SlidersHorizontal className="h-4 w-4" /> Límite operacional
             </DropdownMenuItem>
+            {(item.verificationStatus === "pending" || item.verificationStatus === "rejected") && (
+              <DropdownMenuItem
+                className="gap-2 text-success"
+                onClick={() => handleOpenReview(item, "approve")}
+              >
+                <CheckCircle2 className="h-4 w-4" /> Aprobar cuenta
+              </DropdownMenuItem>
+            )}
+            {item.verificationStatus === "pending" && (
+              <DropdownMenuItem
+                className="gap-2 text-destructive"
+                onClick={() => handleOpenReview(item, "reject")}
+              >
+                <XCircle className="h-4 w-4" /> Rechazar cuenta
+              </DropdownMenuItem>
+            )}
+            {(item.verificationStatus === "verified" || item.verificationStatus === "suspended") && (
             <DropdownMenuItem
               className={`gap-2 ${item.verificationStatus === "suspended"
                   ? "text-success"
@@ -286,6 +339,7 @@ const Usuarios = () => {
                 </>
               )}
             </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -318,7 +372,7 @@ const Usuarios = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nombre, email, dni, id, teléfono..."
+                placeholder="Buscar por nombre, razón social, email, DNI, CUIT..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-card border-border/50"
@@ -331,14 +385,33 @@ const Usuarios = () => {
                 setPage(0);
               }}
             >
-              <SelectTrigger className="w-full sm:w-40 bg-card border-border/50">
+              <SelectTrigger className="w-full sm:w-44 bg-card border-border/50">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent className="glass-card">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Activos</SelectItem>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="verified">Activos</SelectItem>
+                <SelectItem value="pending">Pendientes</SelectItem>
+                <SelectItem value="rejected">Rechazados</SelectItem>
                 <SelectItem value="suspended">Suspendidos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={accountTypeFilter}
+              onValueChange={(val) => {
+                setAccountTypeFilter(val);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-48 bg-card border-border/50">
+                <UsersIcon className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Tipo de cuenta" />
+              </SelectTrigger>
+              <SelectContent className="glass-card">
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="personal">Persona Física</SelectItem>
+                <SelectItem value="business">Persona Jurídica</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -353,7 +426,7 @@ const Usuarios = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <div className="premium-card p-4 text-center">
             <p className="text-xl md:text-2xl font-bold text-foreground">
               {stats?.total || 0}
@@ -370,8 +443,23 @@ const Usuarios = () => {
               Usuarios activos
             </p>
           </div>
-          <div className="premium-card p-4 text-center">
+          <button
+            type="button"
+            className="premium-card p-4 text-center hover:border-warning/40 transition-colors"
+            onClick={() => {
+              setStatusFilter("pending");
+              setPage(0);
+            }}
+          >
             <p className="text-xl md:text-2xl font-bold text-warning">
+              {stats?.pending || 0}
+            </p>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Pendientes de aprobación
+            </p>
+          </button>
+          <div className="premium-card p-4 text-center">
+            <p className="text-xl md:text-2xl font-bold text-destructive">
               {stats?.suspended || 0}
             </p>
             <p className="text-xs md:text-sm text-muted-foreground">
@@ -499,70 +587,20 @@ const Usuarios = () => {
       </div>
 
       {/* ── View Details Dialog ─────────────────────────────────────────── */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="glass-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Detalles del Usuario</DialogTitle>
-            <DialogDescription>Información completa del usuario</DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground text-xs">ID</Label>
-                  <p className="font-mono text-sm">
-                    {selectedUser.id.substring(0, 8)}...
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">
-                    Estado
-                  </Label>
-                  <StatusBadge status={selectedUser.verificationStatus as any} />
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">Nombre</Label>
-                <p className="font-medium">{`${selectedUser.firstName} ${selectedUser.lastName}`}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">Email</Label>
-                <p>{selectedUser.email}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">
-                  Teléfono
-                </Label>
-                <p>{selectedUser.phone}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">DNI</Label>
-                <p>{selectedUser.dni}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Rol</Label>
-                  <p className="font-semibold text-lg capitalize">
-                    {selectedUser.role}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">
-                    Verificado
-                  </Label>
-                  <p className="text-success">Sí</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">
-                  Fecha de Registro
-                </Label>
-                <p>{new Date(selectedUser.createdAt).toLocaleString("es-AR")}</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <UserDetailsDialog
+        user={selectedUser}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        onReview={handleOpenReview}
+      />
+
+      {/* ── Review (approve / reject) Dialog ───────────────────────────── */}
+      <ReviewUserDialog
+        user={selectedUser}
+        decision={reviewDecision}
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+      />
 
       {/* ── Suspend Dialog ─────────────────────────────────────────────── */}
       <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
@@ -578,8 +616,8 @@ const Usuarios = () => {
             <div className="space-y-4">
               <p>
                 {selectedUser.verificationStatus === "suspended"
-                  ? `¿Estás seguro de que deseas quitar la suspensión al usuario ${selectedUser.firstName} ${selectedUser.lastName}?`
-                  : `¿Estás seguro de que deseas suspender al usuario ${selectedUser.firstName} ${selectedUser.lastName}?`}
+                  ? `¿Estás seguro de que deseas quitar la suspensión a ${getUserDisplayName(selectedUser)}?`
+                  : `¿Estás seguro de que deseas suspender a ${getUserDisplayName(selectedUser)}?`}
               </p>
               <p className="text-sm text-muted-foreground">
                 {selectedUser.verificationStatus === "suspended"
@@ -622,7 +660,7 @@ const Usuarios = () => {
             <DialogTitle>Límite Operacional</DialogTitle>
             <DialogDescription>
               {selectedUser
-                ? `Configura los límites de ${selectedUser.firstName} ${selectedUser.lastName}`
+                ? `Configura los límites de ${getUserDisplayName(selectedUser)}`
                 : ""}
             </DialogDescription>
           </DialogHeader>

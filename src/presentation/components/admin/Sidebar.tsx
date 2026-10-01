@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/presentation/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/presentation/components/ui/sheet";
 import { useAuth } from "@/presentation/context/AuthContext";
+import { useUserStats } from "@/presentation/hooks/useUsers";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -26,6 +27,8 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { data: userStats } = useUserStats();
+  const badges: Record<string, number> = { "/usuarios": userStats?.pending || 0 };
 
   const handleLogout = async () => {
     await logout();
@@ -68,6 +71,14 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
                 isActive ? "text-sidebar-primary" : ""
               )} />
               {item.label}
+              {badges[item.path] > 0 && (
+                <span
+                  className="ml-auto rounded-full bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground"
+                  title="Cuentas pendientes de aprobación"
+                >
+                  {badges[item.path]}
+                </span>
+              )}
             </NavLink>
           );
         })}
