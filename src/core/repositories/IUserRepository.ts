@@ -18,5 +18,6 @@ export interface IUserRepository {
     updateStatus(id: string, status: VerificationStatus): Promise<void>;
     reviewUser(id: string, decision: "approve" | "reject", reason?: string): Promise<void>;
     getReviews(userId: string): Promise<AccountReview[]>;
+    getContractUrl(contractRef: string): Promise<string>;
     getStats(): Promise<UserStats>;
 }

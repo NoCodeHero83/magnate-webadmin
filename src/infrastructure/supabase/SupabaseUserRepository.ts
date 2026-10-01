@@ -26,7 +26,11 @@ interface DbUser {
     company_entity_type: string | null;
     company_entity_type_name: string | null;
     company_incorporation_date: string | null;
+    zapsign_contract_url: string | null;
 }
+
+const DOCUMENTS_BUCKET = "documents";
+const PUBLIC_DOCUMENTS_MARKER = `/storage/v1/object/public/${DOCUMENTS_BUCKET}/`;
 
 const USER_VIEW = "admin_user_list";
 
@@ -60,6 +64,7 @@ export class SupabaseUserRepository implements IUserRepository {
                 : undefined,
             statusReason: dbUser.status_reason || undefined,
             reviewedAt: dbUser.reviewed_at || undefined,
+            contractRef: dbUser.zapsign_contract_url || undefined,
             photoUrl: dbUser.photo_url || undefined,
             createdAt: dbUser.created_at,
             updatedAt: dbUser.updated_at,
@@ -194,6 +199,26 @@ export class SupabaseUserRepository implements IUserRepository {
             reviewerName: r.reviewer ? `${r.reviewer.first_name} ${r.reviewer.last_name}` : undefined,
             createdAt: r.created_at,
         }));
+    }
+
+    /**
+     * URL para abrir el contrato. El bucket "documents" es privado: las rutas
+     * (y las URLs públicas viejas de ese bucket) se resuelven con una URL firmada.
+     * Las URLs externas (ej. ZapSign) se devuelven tal cual.
+     */
+    async getContractUrl(contractRef: string): Promise<string> {
+        let path: string | null = null;
+        if (!/^https?:\/\//i.test(contractRef)) {
+            path = contractRef;
+        } else if (contractRef.includes(PUBLIC_DOCUMENTS_MARKER)) {
+            path = decodeURIComponent(contractRef.split(PUBLIC_DOCUMENTS_MARKER)[1].split("?")[0]);
+        }
+
+        if (!path) return contractRef;
+
+        const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60 * 5);
+        if (error || !data?.signedUrl) throw new Error(`No se pudo abrir el contrato: ${error?.message ?? "sin URL"}`);
+        return data.signedUrl;
     }
 
     async getAccountLimits(userId: string): Promise<{

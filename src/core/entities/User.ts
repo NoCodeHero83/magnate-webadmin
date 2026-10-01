@@ -24,6 +24,8 @@ export interface User {
   businessProfile?: BusinessProfile;
   statusReason?: string;
   reviewedAt?: string;
+  /** Contrato firmado (ZapSign): ruta en el bucket privado "documents" o URL externa */
+  contractRef?: string;
   photoUrl?: string;
   createdAt: string;
   updatedAt: string;

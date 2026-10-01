@@ -1,4 +1,7 @@
-import { Building2, History, CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Building2, History, CheckCircle2, XCircle, FileText, Loader2 } from "lucide-react";
+import { SupabaseUserRepository } from "@/infrastructure/supabase/SupabaseUserRepository";
 import { User, getUserDisplayName } from "@/core/entities/User";
 import { useUserReviews } from "@/presentation/hooks/useUsers";
 import { StatusBadge } from "@/presentation/components/admin/StatusBadge";
@@ -34,8 +37,28 @@ const Field = ({ label, value, className }: { label: string; value: React.ReactN
   </div>
 );
 
+const userRepository = new SupabaseUserRepository();
+
 export function UserDetailsDialog({ user, open, onOpenChange, onReview }: UserDetailsDialogProps) {
   const { data: reviews } = useUserReviews(open && user ? user.id : null);
+  const [openingContract, setOpeningContract] = useState(false);
+
+  const handleOpenContract = async () => {
+    if (!user?.contractRef) return;
+    // Abrir la pestaña antes del await para que el navegador no la bloquee
+    const tab = window.open("", "_blank");
+    setOpeningContract(true);
+    try {
+      const url = await userRepository.getContractUrl(user.contractRef);
+      if (tab) tab.location.href = url;
+      else window.open(url, "_blank", "noopener");
+    } catch (error: any) {
+      tab?.close();
+      toast.error(error?.message || "No se pudo abrir el contrato");
+    } finally {
+      setOpeningContract(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -90,6 +113,16 @@ export function UserDetailsDialog({ user, open, onOpenChange, onReview }: UserDe
               <Field label="Fecha de registro" value={new Date(user.createdAt).toLocaleString("es-AR")} />
               <Field label="ID" value={<span className="font-mono text-xs">{user.id}</span>} className="col-span-2" />
             </div>
+            {user.contractRef && (
+              <Button variant="outline" size="sm" onClick={handleOpenContract} disabled={openingContract}>
+                {openingContract ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-2" />
+                )}
+                Ver contrato firmado
+              </Button>
+            )}
           </section>
 
           {reviews && reviews.length > 0 && (
