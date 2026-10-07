@@ -43,8 +43,11 @@ import {
   PaginationEllipsis,
 } from "@/presentation/components/ui/pagination";
 import { Label } from "@/presentation/components/ui/label";
-import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download, Users as UsersIcon, CheckCircle2, XCircle } from "lucide-react";
+import { Checkbox } from "@/presentation/components/ui/checkbox";
+import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download, Users as UsersIcon, CheckCircle2, XCircle, Handshake } from "lucide-react";
 import { toast } from "sonner";
+import { csvCell } from "@/lib/format";
+import { useDistributors, useAssignAccounts } from "@/presentation/hooks/useDistributors";
 
 const STATUS_FILTERS = ["all", "verified", "pending", "rejected", "suspended"];
 const ACCOUNT_TYPE_FILTERS = ["all", "personal", "business"];
@@ -54,13 +57,6 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
   rejected: "Rechazado",
   suspended: "Suspendido",
-};
-
-/** Escapa un valor para CSV y evita que Excel lo interprete como fórmula */
-const csvCell = (value: unknown) => {
-  let text = String(value ?? "");
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return `"${text.replace(/"/g, '""')}"`;
 };
 
 const Usuarios = () => {
@@ -76,8 +72,10 @@ const Usuarios = () => {
   const typeParam = searchParams.get("tipo") || "all";
   const statusFilter = STATUS_FILTERS.includes(statusParam) ? statusParam : "all";
   const accountTypeFilter = ACCOUNT_TYPE_FILTERS.includes(typeParam) ? typeParam : "all";
+  // id de distribuidor, "none" (sin asignar) o "all"
+  const distributorFilter = searchParams.get("distribuidor") || "all";
 
-  const setFilter = (param: "estado" | "tipo", value: string) => {
+  const setFilter = (param: "estado" | "tipo" | "distribuidor", value: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (value === "all") next.delete(param);
@@ -88,6 +86,15 @@ const Usuarios = () => {
   };
   const setStatusFilter = (value: string) => setFilter("estado", value);
   const setAccountTypeFilter = (value: string) => setFilter("tipo", value);
+  const setDistributorFilter = (value: string) => setFilter("distribuidor", value);
+
+  const { data: distributors = [] } = useDistributors();
+  const assignAccounts = useAssignAccounts();
+  // CVUs seleccionados para asignar en lote (account_id -> nombre)
+  const [selectedAccounts, setSelectedAccounts] = useState<Map<string, string>>(new Map());
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<string>("");
+  const [assignAccountIds, setAssignAccountIds] = useState<string[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,13 +108,14 @@ const Usuarios = () => {
     search: debouncedSearch,
     status: statusFilter,
     accountType: accountTypeFilter,
+    distributorId: distributorFilter,
     page,
     pageSize,
   });
 
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, accountTypeFilter]);
+  }, [statusFilter, accountTypeFilter, distributorFilter]);
 
   const { data: stats } = useUserStats();
 
@@ -146,6 +154,40 @@ const Usuarios = () => {
     setReviewDecision(decision);
     setViewDialogOpen(false);
     setReviewDialogOpen(true);
+  };
+
+  // ── Asignación a distribuidores ────────────────────────────────────────────
+
+  const toggleSelected = (user: User, checked: boolean) => {
+    if (!user.accountId) return;
+    setSelectedAccounts((prev) => {
+      const next = new Map(prev);
+      if (checked) next.set(user.accountId!, getUserDisplayName(user));
+      else next.delete(user.accountId!);
+      return next;
+    });
+  };
+
+  const openAssign = (accountIds: string[], currentDistributorId?: string) => {
+    setAssignAccountIds(accountIds);
+    setAssignTarget(currentDistributorId ?? "");
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssign = async () => {
+    const distributorId = assignTarget === "none" ? null : assignTarget;
+    try {
+      const changed = await assignAccounts.mutateAsync({ accountIds: assignAccountIds, distributorId });
+      toast.success(
+        distributorId
+          ? `${changed} ${changed === 1 ? "CVU asignado" : "CVUs asignados"}`
+          : `${changed} ${changed === 1 ? "CVU liberado" : "CVUs liberados"}`
+      );
+      setAssignDialogOpen(false);
+      setSelectedAccounts(new Map());
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo asignar");
+    }
   };
 
   const handleOpenLimits = (user: User) => {
@@ -211,6 +253,7 @@ const Usuarios = () => {
         search: debouncedSearch,
         status: statusFilter,
         accountType: accountTypeFilter,
+        distributorId: distributorFilter,
       });
       const allUsers = Array.isArray(allData) ? allData : (allData as any).data || [];
 
@@ -230,6 +273,9 @@ const Usuarios = () => {
         "Fecha de inscripción",
         "Estado",
         "Motivo",
+        "Alias",
+        "CVU",
+        "Distribuidor",
         "Fecha Registro",
       ];
       const rows = allUsers.map((u: User) => [
@@ -248,6 +294,9 @@ const Usuarios = () => {
         u.businessProfile?.incorporationDate,
         STATUS_LABELS[u.verificationStatus] ?? u.verificationStatus,
         u.statusReason,
+        u.accountAlias,
+        u.accountCvu,
+        u.distributorName,
         new Date(u.createdAt).toLocaleDateString("es-AR"),
       ]);
 
@@ -274,8 +323,30 @@ const Usuarios = () => {
 
   // ── Columns ───────────────────────────────────────────────────────────────
 
+  const pageUsers = ((result as PaginatedResult<User>)?.data || []).filter((u) => u.accountId);
+  const allPageSelected = pageUsers.length > 0 && pageUsers.every((u) => selectedAccounts.has(u.accountId!));
+
   const columns = [
-    { key: "id", header: "ID", className: "font-mono text-xs" },
+    {
+      key: "select",
+      header: (
+        <Checkbox
+          aria-label="Seleccionar todos los de esta página"
+          checked={allPageSelected}
+          onCheckedChange={(checked) => pageUsers.forEach((u) => toggleSelected(u, checked === true))}
+        />
+      ),
+      className: "w-10",
+      render: (item: User) =>
+        item.accountId ? (
+          <Checkbox
+            aria-label={`Seleccionar ${getUserDisplayName(item)}`}
+            checked={selectedAccounts.has(item.accountId)}
+            onCheckedChange={(checked) => toggleSelected(item, checked === true)}
+          />
+        ) : null,
+    },
+    { key: "id", header: "ID", className: "font-mono text-xs hidden 2xl:table-cell" },
     {
       key: "name",
       header: "Usuario",
@@ -310,6 +381,17 @@ const Usuarios = () => {
       ),
     },
     {
+      key: "distributor",
+      header: "Distribuidor",
+      className: "hidden xl:table-cell",
+      render: (item: User) =>
+        item.distributorName ? (
+          <span className="text-sm">{item.distributorName}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: "createdAt",
       header: "Registro",
       className: "hidden lg:table-cell",
@@ -339,6 +421,14 @@ const Usuarios = () => {
             >
               <SlidersHorizontal className="h-4 w-4" /> Límite operacional
             </DropdownMenuItem>
+            {item.accountId && (
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => openAssign([item.accountId!], item.distributorId)}
+              >
+                <Handshake className="h-4 w-4" /> Asignar distribuidor
+              </DropdownMenuItem>
+            )}
             {(item.verificationStatus === "pending" || item.verificationStatus === "rejected") && (
               <DropdownMenuItem
                 className="gap-2 text-success"
@@ -451,6 +541,27 @@ const Usuarios = () => {
                 <SelectItem value="business">Persona Jurídica</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={distributorFilter}
+              onValueChange={(val) => {
+                setDistributorFilter(val);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-52 bg-card border-border/50">
+                <Handshake className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Distribuidor" />
+              </SelectTrigger>
+              <SelectContent className="glass-card">
+                <SelectItem value="all">Todos los distribuidores</SelectItem>
+                <SelectItem value="none">Sin distribuidor</SelectItem>
+                {distributors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             variant="outline"
@@ -504,6 +615,25 @@ const Usuarios = () => {
             </p>
           </div>
         </div>
+
+        {/* Selección para asignar en lote */}
+        {selectedAccounts.size > 0 && (
+          <div className="premium-card p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-sm">
+              <span className="font-semibold">{selectedAccounts.size}</span>{" "}
+              {selectedAccounts.size === 1 ? "CVU seleccionado" : "CVUs seleccionados"}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSelectedAccounts(new Map())}>
+                Quitar selección
+              </Button>
+              <Button size="sm" className="gap-2" onClick={() => openAssign([...selectedAccounts.keys()])}>
+                <Handshake className="h-4 w-4" />
+                Asignar distribuidor
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="space-y-4">
@@ -638,6 +768,48 @@ const Usuarios = () => {
         open={reviewDialogOpen}
         onOpenChange={setReviewDialogOpen}
       />
+
+      {/* ── Asignar distribuidor ─────────────────────────────────────────── */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="glass-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Asignar distribuidor</DialogTitle>
+            <DialogDescription>
+              {assignAccountIds.length === 1
+                ? "Las comisiones de las operaciones nuevas de este CVU se repartirán con el distribuidor elegido."
+                : `Las comisiones de las operaciones nuevas de estos ${assignAccountIds.length} CVUs se repartirán con el distribuidor elegido.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={assignTarget} onValueChange={setAssignTarget}>
+              <SelectTrigger>
+                <SelectValue placeholder="Elige un distribuidor" />
+              </SelectTrigger>
+              <SelectContent className="glass-card">
+                <SelectItem value="none">Sin distribuidor (todo para Magnate)</SelectItem>
+                {distributors
+                  .filter((d) => d.status === "active")
+                  .map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {distributors.length === 0 && (
+              <p className="text-sm text-muted-foreground">Primero crea un distribuidor desde Distribuidores.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assignAccounts.isPending}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAssign} disabled={!assignTarget || assignAccounts.isPending}>
+                {assignAccounts.isPending ? "Guardando..." : "Asignar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Suspend Dialog ─────────────────────────────────────────────── */}
       <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>

@@ -1,9 +1,11 @@
 import { supabase } from "./client";
 
+export type StaffRole = "user" | "admin" | "distributor";
+
 export interface AuthUser {
     id: string;
     email: string;
-    role: "user" | "admin";
+    role: StaffRole;
 }
 
 export class SupabaseAuthService {
@@ -28,7 +30,7 @@ export class SupabaseAuthService {
         return {
             id: authData.user.id,
             email: authData.user.email!,
-            role: userData.role as "user" | "admin",
+            role: userData.role as StaffRole,
         };
     }
 
@@ -53,11 +55,17 @@ export class SupabaseAuthService {
         return {
             id: user.id,
             email: user.email!,
-            role: userData.role as "user" | "admin",
+            role: userData.role as StaffRole,
         };
     }
 
-    async getUserRole(userId: string): Promise<"user" | "admin"> {
+    /** Cambia la contraseña del usuario que inició sesión */
+    async changePassword(newPassword: string): Promise<void> {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw new Error(error.message);
+    }
+
+    async getUserRole(userId: string): Promise<StaffRole> {
         const { data, error } = await supabase
             .from("users")
             .select("role")
@@ -65,6 +73,6 @@ export class SupabaseAuthService {
             .single();
 
         if (error) throw new Error(`Error fetching user role: ${error.message}`);
-        return data.role as "user" | "admin";
+        return data.role as StaffRole;
     }
 }

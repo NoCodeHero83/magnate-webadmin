@@ -18,7 +18,7 @@ export interface User {
   phone: string;
   dni: string;
   cuitCuil?: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "distributor";
   verificationStatus: VerificationStatus;
   accountType: AccountType;
   businessProfile?: BusinessProfile;
@@ -27,6 +27,13 @@ export interface User {
   /** Contrato firmado (ZapSign): ruta en el bucket privado "documents" o URL externa */
   contractRef?: string;
   photoUrl?: string;
+  /** Cuenta (CVU) del cliente */
+  accountId?: string;
+  accountCvu?: string;
+  accountAlias?: string;
+  /** Distribuidor al que está asignado el CVU */
+  distributorId?: string;
+  distributorName?: string;
   createdAt: string;
   updatedAt: string;
 }

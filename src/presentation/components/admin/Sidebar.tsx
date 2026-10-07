@@ -5,6 +5,9 @@ import {
   Users,
   ArrowRightLeft,
   Settings,
+  Handshake,
+  Coins,
+  CreditCard,
   LogOut,
   Crown,
   Menu,
@@ -16,18 +19,30 @@ import { Sheet, SheetContent, SheetTrigger } from "@/presentation/components/ui/
 import { useAuth } from "@/presentation/context/AuthContext";
 import { useUserStats } from "@/presentation/hooks/useUsers";
 
-const menuItems = [
+const adminMenu = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Usuarios", path: "/usuarios" },
   { icon: ArrowRightLeft, label: "Transacciones", path: "/transacciones" },
+  { icon: Handshake, label: "Distribuidores", path: "/distribuidores" },
+  { icon: Coins, label: "Comisiones", path: "/comisiones" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
 ];
+
+const distributorMenu = [
+  { icon: LayoutDashboard, label: "Mi panel", path: "/" },
+  { icon: CreditCard, label: "Mis CVUs", path: "/mis-cvus" },
+  { icon: Coins, label: "Mis comisiones", path: "/mis-comisiones" },
+];
+
+const ROLE_LABELS: Record<string, string> = { admin: "Administrador", distributor: "Distribuidor" };
 
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { data: userStats } = useUserStats();
+  const isAdmin = user?.role === "admin";
+  const menuItems = isAdmin ? adminMenu : distributorMenu;
+  const { data: userStats } = useUserStats(isAdmin);
   const badges: Record<string, number> = { "/usuarios": userStats?.pending || 0 };
 
   const handleLogout = async () => {
@@ -46,7 +61,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
           <h1 className="font-display text-lg font-bold text-sidebar-foreground">
             Magnate
           </h1>
-          <p className="text-xs text-sidebar-foreground/60">Admin Panel</p>
+          <p className="text-xs text-sidebar-foreground/60">{isAdmin ? "Admin Panel" : "Panel Distribuidor"}</p>
         </div>
       </div>
 
@@ -93,7 +108,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate capitalize">{user?.role || "Admin"}</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{ROLE_LABELS[user?.role ?? ""] ?? "Admin"}</p>
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || "admin@magnate.com"}</p>
           </div>
           <button

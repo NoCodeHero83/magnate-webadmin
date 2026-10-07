@@ -5,6 +5,8 @@ import { DataTable } from "@/presentation/components/admin/DataTable";
 import { StatusBadge } from "@/presentation/components/admin/StatusBadge";
 import { useDashboardStats, useTransactions } from "@/presentation/hooks/useTransactions";
 import { useUserStats } from "@/presentation/hooks/useUsers";
+import { useCommissionSummary } from "@/presentation/hooks/useDistributors";
+import { formatARS, getPeriod } from "@/lib/format";
 import {
   Users,
   ArrowRightLeft,
@@ -12,11 +14,15 @@ import {
   TrendingUp,
   UserX,
   UserCheck,
+  Coins,
+  Landmark,
+  Handshake,
 } from "lucide-react";
 
 const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: userStats, isLoading: userStatsLoading } = useUserStats();
+  const { data: commissions } = useCommissionSummary(getPeriod("this_month"));
   const { data: result, isLoading: transactionsLoading } = useTransactions({
     page: 0,
     pageSize: 5,
@@ -140,6 +146,34 @@ const Dashboard = () => {
             iconColor="from-warning/80 to-warning"
           />
         </div>
+
+        {/* Fila 3 — Comisiones del mes */}
+        <Link to="/comisiones" className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 rounded-xl hover:opacity-90 transition-opacity">
+          <StatsCard
+            title="Comisiones del mes"
+            value={formatARS(commissions?.feeTotal)}
+            change={`${commissions?.count ?? 0} operaciones`}
+            changeType="neutral"
+            icon={Coins}
+            iconColor="from-primary to-accent"
+          />
+          <StatsCard
+            title="Parte de Magnate"
+            value={formatARS(commissions?.magnateTotal)}
+            change="Este mes"
+            changeType="neutral"
+            icon={Landmark}
+            iconColor="from-info to-info"
+          />
+          <StatsCard
+            title="Parte de distribuidores"
+            value={formatARS(commissions?.distributorTotal)}
+            change="Este mes"
+            changeType="neutral"
+            icon={Handshake}
+            iconColor="from-success/80 to-success"
+          />
+        </Link>
 
         {/* Transacciones Recientes */}
         <div className="space-y-4">

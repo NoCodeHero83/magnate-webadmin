@@ -4,10 +4,11 @@ import { QueryOptions } from "../../core/types/pagination";
 
 const userRepository = new SupabaseUserRepository();
 
-export function useUsers(options?: QueryOptions) {
+export function useUsers(options?: QueryOptions, enabled = true) {
     return useQuery({
         queryKey: ["users", options],
         queryFn: () => userRepository.getAll(options),
+        enabled,
     });
 }
 
@@ -19,10 +20,11 @@ export function useUser(id: string) {
     });
 }
 
-export function useUserStats() {
+export function useUserStats(enabled = true) {
     return useQuery({
         queryKey: ["users", "stats"],
         queryFn: () => userRepository.getStats(),
+        enabled,
     });
 }
 

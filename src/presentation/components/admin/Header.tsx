@@ -1,8 +1,9 @@
-import { Search, ChevronDown, Menu, LogOut, User, Settings as SettingsIcon } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, LogOut, KeyRound, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/presentation/context/AuthContext";
-import { Input } from "@/presentation/components/ui/input";
 import { Button } from "@/presentation/components/ui/button";
+import { ChangePasswordDialog } from "@/presentation/components/admin/ChangePasswordDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ interface HeaderProps {
 export const Header = ({ title, subtitle }: HeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -54,9 +56,15 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
             <DropdownMenuContent align="end" className="glass-card">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/configuracion")}>
-                <SettingsIcon className="mr-2 h-4 w-4" />
-                Configuración
+              {user?.role === "admin" && (
+                <DropdownMenuItem onClick={() => navigate("/configuracion")}>
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  Configuración
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                Cambiar contraseña
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
@@ -67,6 +75,7 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
           </DropdownMenu>
         </div>
       </div>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </header>
   );
 };

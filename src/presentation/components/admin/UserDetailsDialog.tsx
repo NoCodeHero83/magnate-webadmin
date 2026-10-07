@@ -6,6 +6,7 @@ import { User, getUserDisplayName } from "@/core/entities/User";
 import { useUserReviews } from "@/presentation/hooks/useUsers";
 import { StatusBadge } from "@/presentation/components/admin/StatusBadge";
 import { AccountTypeBadge } from "@/presentation/components/admin/AccountTypeBadge";
+import { BusinessDocumentsSection } from "@/presentation/components/admin/BusinessDocumentsSection";
 import { Button } from "@/presentation/components/ui/button";
 import { Label } from "@/presentation/components/ui/label";
 import { Separator } from "@/presentation/components/ui/separator";
@@ -106,6 +107,13 @@ export function UserDetailsDialog({ user, open, onOpenChange, onReview }: UserDe
             </section>
           )}
 
+          {isBusiness && (
+            <>
+              <BusinessDocumentsSection userId={user.id} />
+              <Separator />
+            </>
+          )}
+
           <section className="space-y-3">
             {isBusiness && <h4 className="text-sm font-semibold">Representante legal</h4>}
             <div className="grid grid-cols-2 gap-4">
@@ -115,6 +123,9 @@ export function UserDetailsDialog({ user, open, onOpenChange, onReview }: UserDe
               <Field label="DNI" value={user.dni} />
               <Field label="CUIT/CUIL" value={<span className="font-mono">{formatCuit(user.cuitCuil)}</span>} />
               <Field label="Fecha de registro" value={new Date(user.createdAt).toLocaleString("es-AR")} />
+              {user.accountAlias && <Field label="Alias" value={<span className="font-mono">{user.accountAlias}</span>} />}
+              {user.accountCvu && <Field label="CVU" value={<span className="font-mono text-xs">{user.accountCvu}</span>} />}
+              <Field label="Distribuidor" value={user.distributorName || "—"} />
               <Field label="ID" value={<span className="font-mono text-xs">{user.id}</span>} className="col-span-2" />
             </div>
             {user.contractRef && (

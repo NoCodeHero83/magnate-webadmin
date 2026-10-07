@@ -50,6 +50,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
             fromUserName,
             toUserName: toUserName || dbTx.payment_reference || dbTx.external_holder_name || dbTx.external_alias || undefined,
             isIncoming,
+            isCommission: dbTx.payment_method === "commission",
         };
     }
 

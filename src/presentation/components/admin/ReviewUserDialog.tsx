@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { User, getUserDisplayName } from "@/core/entities/User";
 import { useReviewUser } from "@/presentation/hooks/useUsers";
+import { useBusinessDocuments } from "@/presentation/hooks/useBusinessDocuments";
+import { missingRequiredDocuments } from "@/presentation/components/admin/BusinessDocumentsSection";
 import { Button } from "@/presentation/components/ui/button";
 import { Label } from "@/presentation/components/ui/label";
 import { Textarea } from "@/presentation/components/ui/textarea";
@@ -25,6 +27,10 @@ export function ReviewUserDialog({ user, decision, open, onOpenChange }: ReviewU
   const [reason, setReason] = useState("");
   const reviewMutation = useReviewUser();
   const isReject = decision === "reject";
+  // Antes de aprobar una empresa, avisar si faltan documentos obligatorios aprobados
+  const checkDocs = open && !isReject && user?.accountType === "business";
+  const { data: docSlots } = useBusinessDocuments(checkDocs ? user!.id : null);
+  const missingDocs = checkDocs ? missingRequiredDocuments(docSlots) : [];
 
   useEffect(() => {
     if (open) setReason("");
@@ -66,6 +72,13 @@ export function ReviewUserDialog({ user, decision, open, onOpenChange }: ReviewU
               : `La cuenta de ${name} quedará habilitada para enviar y recibir dinero. Se le enviará un email de confirmación.`}
           </DialogDescription>
         </DialogHeader>
+
+        {missingDocs.length > 0 && (
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+            <p className="font-medium text-warning">Faltan documentos obligatorios aprobados</p>
+            <p className="text-muted-foreground">{missingDocs.map((d) => d.name).join(", ")}. Puedes aprobar igual si ya los verificaste por otro medio.</p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="review-reason">

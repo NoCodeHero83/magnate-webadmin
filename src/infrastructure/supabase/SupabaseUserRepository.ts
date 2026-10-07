@@ -27,6 +27,11 @@ interface DbUser {
     company_entity_type_name: string | null;
     company_incorporation_date: string | null;
     zapsign_contract_url: string | null;
+    account_id: string | null;
+    account_cvu: string | null;
+    account_alias: string | null;
+    distributor_id: string | null;
+    distributor_name: string | null;
 }
 
 const DOCUMENTS_BUCKET = "documents";
@@ -37,6 +42,7 @@ const USER_VIEW = "admin_user_list";
 const SEARCH_COLUMNS = [
     "first_name", "last_name", "email", "dni", "phone", "cuit_cuil",
     "company_legal_name", "company_trade_name", "company_cuit",
+    "account_alias", "account_cvu",
 ];
 
 /** Columnas guardadas solo con dígitos (se buscan sin guiones ni puntos) */
@@ -52,7 +58,7 @@ export class SupabaseUserRepository implements IUserRepository {
             phone: dbUser.phone,
             dni: dbUser.dni,
             cuitCuil: dbUser.cuit_cuil || undefined,
-            role: dbUser.role as "user" | "admin",
+            role: dbUser.role as User["role"],
             verificationStatus: dbUser.verification_status as VerificationStatus,
             accountType: (dbUser.account_type || "personal") as AccountType,
             businessProfile: dbUser.company_cuit
@@ -69,6 +75,11 @@ export class SupabaseUserRepository implements IUserRepository {
             reviewedAt: dbUser.reviewed_at || undefined,
             contractRef: dbUser.zapsign_contract_url || undefined,
             photoUrl: dbUser.photo_url || undefined,
+            accountId: dbUser.account_id || undefined,
+            accountCvu: dbUser.account_cvu || undefined,
+            accountAlias: dbUser.account_alias || undefined,
+            distributorId: dbUser.distributor_id || undefined,
+            distributorName: dbUser.distributor_name || undefined,
             createdAt: dbUser.created_at,
             updatedAt: dbUser.updated_at,
         };
@@ -101,6 +112,13 @@ export class SupabaseUserRepository implements IUserRepository {
 
         if (options?.accountType && options.accountType !== "all") {
             query = query.eq("account_type", options.accountType);
+        }
+
+        // "none" = sin distribuidor asignado
+        if (options?.distributorId && options.distributorId !== "all") {
+            query = options.distributorId === "none"
+                ? query.is("distributor_id", null)
+                : query.eq("distributor_id", options.distributorId);
         }
 
         query = query.eq("role", "user");
