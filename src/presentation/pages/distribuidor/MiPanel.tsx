@@ -86,7 +86,7 @@ const MiPanel = () => {
       <div className="p-4 md:p-6 space-y-6">
         {me.status !== "active" && (
           <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
-            Tu cuenta de distribuidor está inactiva. No se te pueden asignar CVUs nuevos.
+            Tu cuenta de distribuidor está inactiva: no recibes comisiones de las operaciones nuevas. Contacta a Magnate.
           </div>
         )}
 

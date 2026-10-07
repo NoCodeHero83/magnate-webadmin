@@ -311,7 +311,11 @@ const Distribuidores = () => {
         contactEmail: d.contactEmail,
         status: d.status === "active" ? "inactive" : "active",
       });
-      toast.success(d.status === "active" ? "Distribuidor desactivado" : "Distribuidor activado");
+      toast.success(
+        d.status === "active"
+          ? "Distribuidor desactivado: sus CVUs siguen asignados, pero las comisiones nuevas van completas a Magnate"
+          : "Distribuidor activado: vuelve a recibir su parte de las comisiones nuevas"
+      );
     } catch (err: any) {
       toast.error(err?.message || "No se pudo cambiar el estado");
     }
