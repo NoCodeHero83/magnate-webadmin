@@ -18,7 +18,7 @@ layer(base);
   }
 }
 
-@theme {
+@theme inline {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -140,6 +140,19 @@ layer(base);
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* Tailwind 4: mantiene el puntero y el color de placeholder que daba Tailwind 3 */
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400, #9ca3af);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
 
