@@ -17,6 +17,9 @@ import { DataTable } from "@/presentation/components/admin/DataTable";
 import { PeriodSelect } from "@/presentation/components/admin/PeriodSelect";
 import { AccountVolumeTable } from "@/presentation/components/admin/AccountVolumeTable";
 import { CommissionDetailTable } from "@/presentation/components/admin/CommissionDetailTable";
+import { MovementsTable } from "@/presentation/components/admin/MovementsTable";
+import { WithdrawalsTable } from "@/presentation/components/admin/WithdrawalsTable";
+import { useMovements, useWithdrawals } from "@/presentation/hooks/useWithdrawals";
 import { PasswordRevealDialog } from "@/presentation/components/admin/PasswordRevealDialog";
 import { Button } from "@/presentation/components/ui/button";
 import { Input } from "@/presentation/components/ui/input";
@@ -253,6 +256,8 @@ function DistributorReportDialog({
   const enabled = open && !!distributor;
   const { data: volume = [], isLoading: volumeLoading } = useAccountVolume(period, distributor?.id, enabled);
   const { data: detail = [], isLoading: detailLoading } = useCommissionDetail(period, distributor?.id, enabled);
+  const { data: movements = [], isLoading: movementsLoading } = useMovements(period, distributor?.id, null, enabled);
+  const { data: withdrawals = [], isLoading: withdrawalsLoading } = useWithdrawals(null, distributor?.id, enabled);
   const slug = distributor?.name.toLowerCase().replace(/[^a-z0-9]+/g, "_") ?? "distribuidor";
 
   return (
@@ -271,12 +276,21 @@ function DistributorReportDialog({
           <TabsList>
             <TabsTrigger value="cvus">CVUs y volumen</TabsTrigger>
             <TabsTrigger value="commissions">Comisiones</TabsTrigger>
+            <TabsTrigger value="movements">Movimientos</TabsTrigger>
+            <TabsTrigger value="withdrawals">Retiros</TabsTrigger>
           </TabsList>
           <TabsContent value="cvus" className="pt-4">
             <AccountVolumeTable rows={volume} isLoading={volumeLoading} exportName={`cvus_${slug}`} />
           </TabsContent>
           <TabsContent value="commissions" className="pt-4">
             <CommissionDetailTable rows={detail} isLoading={detailLoading} adminView exportName={`comisiones_${slug}`} />
+          </TabsContent>
+          <TabsContent value="movements" className="pt-4">
+            <MovementsTable rows={movements} isLoading={movementsLoading} exportName={`movimientos_${slug}`} />
+          </TabsContent>
+          <TabsContent value="withdrawals" className="pt-4">
+            {/* Todos los retiros del distribuidor (no depende del período) */}
+            <WithdrawalsTable rows={withdrawals} isLoading={withdrawalsLoading} exportName={`retiros_${slug}`} />
           </TabsContent>
         </Tabs>
       </DialogContent>

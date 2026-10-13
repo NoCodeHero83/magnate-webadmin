@@ -6,6 +6,7 @@ import { StatsCard } from "@/presentation/components/admin/StatsCard";
 import { DataTable } from "@/presentation/components/admin/DataTable";
 import { PeriodSelect } from "@/presentation/components/admin/PeriodSelect";
 import { useAccountVolume, useDistributorMe } from "@/presentation/hooks/useDistributors";
+import { useDistributorBalance } from "@/presentation/hooks/useWithdrawals";
 import { AccountVolume } from "@/core/entities/Distributor";
 import { formatARS, getPeriod, PeriodKey, PERIOD_LABELS } from "@/lib/format";
 
@@ -17,6 +18,7 @@ const MiPanel = () => {
   const period = getPeriod(periodKey);
   const { data: me, isLoading: meLoading } = useDistributorMe();
   const { data: volume = [], isLoading: volumeLoading } = useAccountVolume(period);
+  const { data: balance } = useDistributorBalance();
 
   const totals = volume.reduce(
     (acc, r) => ({
@@ -118,10 +120,14 @@ const MiPanel = () => {
           <StatsCard
             title="Tus comisiones"
             value={volumeLoading ? "…" : formatARS(totals.distributorAmount)}
-            change={`Acumulado: ${formatARS(me.commissionBalance)}`}
+            change={`Disponible para retirar: ${formatARS(balance?.available ?? me.commissionBalance)}`}
             icon={Coins}
             iconColor="from-warning/80 to-warning"
           />
+        </div>
+
+        <div className="flex justify-end">
+          <Link to="/mis-retiros" className="text-sm text-primary hover:underline">Retirar comisiones</Link>
         </div>
 
         <div className="space-y-4">

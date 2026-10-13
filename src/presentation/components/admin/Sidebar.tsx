@@ -8,6 +8,8 @@ import {
   Handshake,
   Coins,
   CreditCard,
+  Wallet,
+  List,
   LogOut,
   Crown,
   Menu,
@@ -18,6 +20,7 @@ import { Button } from "@/presentation/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/presentation/components/ui/sheet";
 import { useAuth } from "@/presentation/context/AuthContext";
 import { useUserStats } from "@/presentation/hooks/useUsers";
+import { usePendingWithdrawalsCount } from "@/presentation/hooks/useWithdrawals";
 
 const adminMenu = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -25,14 +28,22 @@ const adminMenu = [
   { icon: ArrowRightLeft, label: "Transacciones", path: "/transacciones" },
   { icon: Handshake, label: "Distribuidores", path: "/distribuidores" },
   { icon: Coins, label: "Comisiones", path: "/comisiones" },
+  { icon: Wallet, label: "Retiros", path: "/retiros" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
 ];
 
 const distributorMenu = [
   { icon: LayoutDashboard, label: "Mi panel", path: "/" },
   { icon: CreditCard, label: "Mis CVUs", path: "/mis-cvus" },
+  { icon: List, label: "Movimientos", path: "/mis-movimientos" },
   { icon: Coins, label: "Mis comisiones", path: "/mis-comisiones" },
+  { icon: Wallet, label: "Retiros", path: "/mis-retiros" },
 ];
+
+const BADGE_TITLES: Record<string, string> = {
+  "/usuarios": "Cuentas pendientes de aprobación",
+  "/retiros": "Retiros pendientes",
+};
 
 const ROLE_LABELS: Record<string, string> = { admin: "Administrador", distributor: "Distribuidor" };
 
@@ -43,7 +54,8 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const isAdmin = user?.role === "admin";
   const menuItems = isAdmin ? adminMenu : distributorMenu;
   const { data: userStats } = useUserStats(isAdmin);
-  const badges: Record<string, number> = { "/usuarios": userStats?.pending || 0 };
+  const pendingWithdrawals = usePendingWithdrawalsCount(isAdmin);
+  const badges: Record<string, number> = { "/usuarios": userStats?.pending || 0, "/retiros": pendingWithdrawals };
 
   const handleLogout = async () => {
     await logout();
@@ -89,7 +101,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
               {badges[item.path] > 0 && (
                 <span
                   className="ml-auto rounded-full bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground"
-                  title="Cuentas pendientes de aprobación"
+                  title={BADGE_TITLES[item.path]}
                 >
                   {badges[item.path]}
                 </span>
