@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { SupabaseAuthService, AuthUser, TotpEnrollment } from "../../infrastructure/supabase/SupabaseAuthService";
+import { SupabaseAuthService, AuthUser } from "../../infrastructure/supabase/SupabaseAuthService";
 import { markPanelActivity } from "../hooks/useIdleLogout";
 
 interface AuthContextType {
@@ -8,10 +8,6 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<AuthUser>;
     logout: () => Promise<void>;
     changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-    /** 2FA: alta del factor TOTP */
-    enrollTotp: () => Promise<TotpEnrollment>;
-    /** 2FA: valida el código y deja la sesión en aal2 */
-    verifyTotp: (code: string, factorId?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,15 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const changePassword = (currentPassword: string, newPassword: string) =>
         authService.changePassword(currentPassword, newPassword);
 
-    const enrollTotp = () => authService.enrollTotp();
-
-    const verifyTotp = async (code: string, factorId?: string) => {
-        await authService.verifyTotp(code, factorId);
-        setUser((prev) => (prev ? { ...prev, mfa: "ok" } : prev));
-    };
-
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, logout, changePassword, enrollTotp, verifyTotp }}>
+        <AuthContext.Provider value={{ user, isLoading, login, logout, changePassword }}>
             {children}
         </AuthContext.Provider>
     );

@@ -22,8 +22,8 @@ export function Login() {
         setIsLoading(true);
 
         try {
-            const authUser = await login(email, password);
-            navigate(authUser.mfa === "ok" ? "/" : "/mfa");
+            await login(email, password);
+            navigate("/");
         } catch (err: any) {
             setError(err.message || "Error al iniciar sesión");
         } finally {
