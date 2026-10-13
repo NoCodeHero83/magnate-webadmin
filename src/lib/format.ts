@@ -19,7 +19,8 @@ export const formatDateTime = (value: string) =>
 /** Escapa un valor para CSV y evita que Excel lo interprete como fórmula */
 export const csvCell = (value: unknown) => {
   let text = String(value ?? "");
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  // Excel también evalúa la fórmula si hay espacios o saltos de línea antes del signo
+  if (/^[=+\-@\t\r]/.test(text.trimStart()) || /^[\t\r\n]/.test(text)) text = `'${text}`;
   return `"${text.replace(/"/g, '""')}"`;
 };
 
