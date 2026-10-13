@@ -6,6 +6,7 @@ import { Label } from "@/presentation/components/ui/label";
 import { SupabaseSupportRepository } from "@/infrastructure/supabase/SupabaseSupportRepository";
 import { ApprovalSettingsCard } from "@/presentation/components/admin/ApprovalSettingsCard";
 import { WithdrawalSettingsCard } from "@/presentation/components/admin/WithdrawalSettingsCard";
+import { MfaSettingsCard } from "@/presentation/components/admin/MfaSettingsCard";
 import {
   Save,
   Building,
@@ -91,6 +92,7 @@ const Configuracion = () => {
       <div className="p-4 md:p-6 space-y-6">
         <ApprovalSettingsCard />
         <WithdrawalSettingsCard />
+        <MfaSettingsCard />
 
         <div className="premium-card p-4 md:p-6 space-y-6">
           <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">

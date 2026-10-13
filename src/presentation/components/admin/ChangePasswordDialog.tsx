@@ -22,12 +22,14 @@ interface ChangePasswordDialogProps {
 
 export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialogProps) {
   const { changePassword } = useAuth();
+  const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
+    setCurrent("");
     setPassword("");
     setConfirm("");
     setError("");
@@ -46,15 +48,17 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
     setSaving(true);
     setError("");
     try {
-      await changePassword(password);
+      await changePassword(current, password);
       toast.success("Contraseña actualizada");
       reset();
       onOpenChange(false);
     } catch (err: any) {
       setError(
-        err?.message?.includes("different")
-          ? "La nueva contraseña debe ser distinta de la actual."
-          : "No se pudo cambiar la contraseña. Intenta de nuevo."
+        err?.message === "CURRENT_PASSWORD_INVALID"
+          ? "La contraseña actual no es correcta."
+          : err?.message?.includes("different")
+            ? "La nueva contraseña debe ser distinta de la actual."
+            : "No se pudo cambiar la contraseña. Intenta de nuevo."
       );
     } finally {
       setSaving(false);
@@ -75,6 +79,16 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           <DialogDescription>Usa al menos {MIN_LENGTH} caracteres.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Contraseña actual</Label>
+            <Input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="new-password">Nueva contraseña</Label>
             <Input
@@ -100,7 +114,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={saving || !password || !confirm}>
+            <Button type="submit" disabled={saving || !current || !password || !confirm}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Guardar
             </Button>

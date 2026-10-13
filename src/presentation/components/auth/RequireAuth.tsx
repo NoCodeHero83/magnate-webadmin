@@ -30,6 +30,11 @@ export function RequireAuth({ children, roles = PANEL_ROLES }: RequireAuthProps)
         return <Navigate to="/login" replace />;
     }
 
+    // Segundo paso: configurar o ingresar el código del 2FA
+    if (PANEL_ROLES.includes(user.role) && user.mfa !== "ok") {
+        return <Navigate to="/mfa" replace />;
+    }
+
     // Un distribuidor que entra a una página de admin vuelve a su inicio
     if (PANEL_ROLES.includes(user.role) && !roles.includes(user.role)) {
         return <Navigate to="/" replace />;

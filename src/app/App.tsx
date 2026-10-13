@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/presentation/context/AuthContext";
 import { RequireAuth } from "@/presentation/components/auth/RequireAuth";
 import { Login } from "@/presentation/pages/auth/Login";
+import { Mfa } from "@/presentation/pages/auth/Mfa";
 import { AdminLayout } from "@/presentation/components/admin/AdminLayout";
 import Dashboard from "@/presentation/pages/Dashboard";
 import Usuarios from "@/presentation/pages/Usuarios";
@@ -42,6 +43,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/mfa" element={<Mfa />} />
             <Route
               element={
                 <RequireAuth>
