@@ -44,7 +44,7 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center">
                   <span className="text-xs font-semibold text-primary-foreground">
                     {user?.email?.substring(0, 2).toUpperCase() || "AD"}
                   </span>

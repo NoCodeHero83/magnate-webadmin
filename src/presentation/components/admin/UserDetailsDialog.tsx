@@ -34,7 +34,7 @@ const formatCuit = (cuit?: string) =>
 const Field = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
   <div className={className}>
     <Label className="text-muted-foreground text-xs">{label}</Label>
-    <div className="text-sm break-words">{value}</div>
+    <div className="text-sm wrap-break-word">{value}</div>
   </div>
 );
 

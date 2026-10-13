@@ -66,7 +66,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-20 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-accent">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-sidebar-primary to-accent">
           <Crown className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
         <div>
@@ -114,7 +114,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
       {/* User Section */}
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3 rounded-xl bg-sidebar-accent/50 px-4 py-3">
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+          <div className="h-9 w-9 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center shrink-0">
             <span className="text-sm font-semibold text-primary-foreground">
               {user?.email?.substring(0, 2).toUpperCase() || "AD"}
             </span>
@@ -147,7 +147,7 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar/80 backdrop-blur-sm border border-sidebar-border"
+            className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar/80 backdrop-blur-xs border border-sidebar-border"
           >
             <Menu className="h-5 w-5 text-sidebar-foreground" />
           </Button>

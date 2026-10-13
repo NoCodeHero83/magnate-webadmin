@@ -32,7 +32,7 @@ export function Login() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted">
+        <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-background to-muted">
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Magnate Admin</CardTitle>
