@@ -138,14 +138,14 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
     }> {
         const { count: totalUsers, error: usersError } = await supabase
             .from("users")
-            .select("*", { count: "exact", head: true })
+            .select("id", { count: "exact", head: true })
             .eq("role", "user");
 
         if (usersError) throw new Error(`Error counting users: ${usersError.message}`);
 
         const { count: activeUsers, error: activeError } = await supabase
             .from("users")
-            .select("*", { count: "exact", head: true })
+            .select("id", { count: "exact", head: true })
             .eq("role", "user")
             .eq("verification_status", "verified");
 
