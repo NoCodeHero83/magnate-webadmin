@@ -262,7 +262,7 @@ function DistributorReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="glass-card w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{distributor?.name}</DialogTitle>
           <DialogDescription>
@@ -272,7 +272,8 @@ function DistributorReportDialog({
         <div className="flex justify-end">
           <PeriodSelect value={periodKey} onChange={setPeriodKey} />
         </div>
-        <Tabs defaultValue="cvus">
+        {/* min-w-0: sin esto la grilla del diálogo se estira con las tablas anchas y se cortan */}
+        <Tabs defaultValue="cvus" className="min-w-0">
           <TabsList>
             <TabsTrigger value="cvus">CVUs y volumen</TabsTrigger>
             <TabsTrigger value="commissions">Comisiones</TabsTrigger>

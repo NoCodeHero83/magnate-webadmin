@@ -87,7 +87,7 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
         currency,
         destination: currency === "ARS" ? { destination, holderName } : { wallet, network },
       });
-      toast.success("Solicitud enviada. Magnate la revisará y te avisará cuando esté pagada.");
+      toast.success("Solicitud enviada. Magnate la revisará; el estado lo ves en esta página.");
       onOpenChange(false);
     } catch (error: any) {
       toast.error(error?.message || "No se pudo enviar la solicitud");

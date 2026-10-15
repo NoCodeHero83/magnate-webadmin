@@ -135,6 +135,9 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
         activeUsers: number;
         totalVolume: string;
         pendingTransactions: number;
+        custodyBalance: number;
+        todayVolume: number;
+        todayCount: number;
     }> {
         const { count: totalUsers, error: usersError } = await supabase
             .from("users")
@@ -170,11 +173,17 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
 
         if (pendingError) throw new Error(`Error counting pending transactions: ${pendingError.message}`);
 
+        const { data: today, error: todayError } = await supabase.rpc("admin_dashboard_stats");
+        if (todayError) throw new Error(`Error fetching dashboard stats: ${todayError.message}`);
+
         return {
             totalUsers: totalUsers || 0,
             activeUsers: activeUsers || 0,
             totalVolume,
             pendingTransactions: pendingTransactions || 0,
+            custodyBalance: Number(today?.custody_balance ?? 0),
+            todayVolume: Number(today?.today_volume ?? 0),
+            todayCount: Number(today?.today_count ?? 0),
         };
     }
 }

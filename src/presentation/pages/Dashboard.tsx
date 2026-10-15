@@ -85,15 +85,15 @@ const Dashboard = () => {
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <StatsCard
             title="Saldo Cuenta Recaudadora"
-            value="$0"
-            change="Transacciones completadas"
-            changeType="positive"
+            value={formatARS(stats?.custodyBalance)}
+            change="Saldo total en cuentas de clientes"
+            changeType="neutral"
             icon={DollarSign}
             iconColor="from-info to-info"
           />
           <StatsCard
             title="Volumen Total HOY"
-            value="$0"
+            value={formatARS(stats?.todayVolume)}
             change="Transacciones completadas"
             changeType="positive"
             icon={DollarSign}
@@ -101,9 +101,13 @@ const Dashboard = () => {
           />
           <StatsCard
             title="Cantidad Transacciones HOY"
-            value={stats?.pendingTransactions.toString() || "0"}
-            change="Requieren atención"
-            changeType="negative"
+            value={(stats?.todayCount ?? 0).toString()}
+            change={
+              stats?.pendingTransactions
+                ? `${stats.pendingTransactions} pendientes`
+                : "Sin pendientes"
+            }
+            changeType={stats?.pendingTransactions ? "negative" : "neutral"}
             icon={ArrowRightLeft}
             iconColor="from-info to-info"
           />
