@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/presentation/components/ui/select";
 import { useCommissionSettings, useSaveCommissionSettings } from "@/presentation/hooks/useDistributors";
-import { InactiveShare, SettlementPeriod, SETTLEMENT_LABELS } from "@/core/entities/Distributor";
+import { InactiveShare, SettlementPeriod, SETTLEMENT_LABELS, VolumeAmountBasis } from "@/core/entities/Distributor";
 import { formatARS } from "@/lib/format";
 
 const MAX_LEVELS = 10;
@@ -28,6 +28,7 @@ export function CommissionSettingsCard() {
   const [levels, setLevels] = useState<string[]>([]);
   const [settlement, setSettlement] = useState<SettlementPeriod>("instant");
   const [inactive, setInactive] = useState<InactiveShare>("magnate");
+  const [volumeBasis, setVolumeBasis] = useState<VolumeAmountBasis>("received");
 
   useEffect(() => {
     if (settings) {
@@ -35,6 +36,7 @@ export function CommissionSettingsCard() {
       setLevels(settings.networkLevelPercents.map(String));
       setSettlement(settings.settlementPeriod);
       setInactive(settings.inactiveDistributorShare);
+      setVolumeBasis(settings.volumeAmountBasis);
     }
   }, [settings]);
 
@@ -50,6 +52,7 @@ export function CommissionSettingsCard() {
         networkLevelPercents: values,
         settlementPeriod: settlement,
         inactiveDistributorShare: inactive,
+        volumeAmountBasis: volumeBasis,
       });
       toast.success("Configuración de comisiones guardada. Aplica a las comisiones nuevas.");
     } catch (error: any) {
@@ -171,6 +174,31 @@ export function CommissionSettingsCard() {
                 <span className="text-sm">
                   <span className="font-medium">Se le sigue acreditando.</span>{" "}
                   <span className="text-muted-foreground">Inactivo solo marca el estado; sigue cobrando igual.</span>
+                </span>
+              </label>
+            </RadioGroup>
+          </div>
+
+          {/* Volumen */}
+          <div className="space-y-2">
+            <Label>Volumen de los CVUs</Label>
+            <p className="text-xs text-muted-foreground">
+              Qué monto se suma en los reportes de volumen (Mis CVUs, movimientos del distribuidor y volumen del día) cuando
+              la comisión se descuenta del monto. No cambia saldos ni comisiones.
+            </p>
+            <RadioGroup value={volumeBasis} onValueChange={(v) => setVolumeBasis(v as VolumeAmountBasis)} className="space-y-2">
+              <label htmlFor="volume-sent" className="flex items-start gap-3 rounded-lg border border-border/50 p-3 cursor-pointer">
+                <RadioGroupItem value="sent" id="volume-sent" className="mt-0.5" />
+                <span className="text-sm">
+                  <span className="font-medium">Lo que mandó el cliente.</span>{" "}
+                  <span className="text-muted-foreground">Una transferencia de $ 2.000 con $ 40 de comisión cuenta $ 2.000.</span>
+                </span>
+              </label>
+              <label htmlFor="volume-received" className="flex items-start gap-3 rounded-lg border border-border/50 p-3 cursor-pointer">
+                <RadioGroupItem value="received" id="volume-received" className="mt-0.5" />
+                <span className="text-sm">
+                  <span className="font-medium">Lo que recibió el destino.</span>{" "}
+                  <span className="text-muted-foreground">La misma transferencia cuenta $ 1.960.</span>
                 </span>
               </label>
             </RadioGroup>

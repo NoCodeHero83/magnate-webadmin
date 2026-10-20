@@ -12,6 +12,8 @@ export const SETTLEMENT_LABELS: Record<SettlementPeriod, string> = {
 
 /** Qué pasa con la parte de un distribuidor inactivo */
 export type InactiveShare = "magnate" | "distributor";
+/** Monto que cuenta como volumen: lo que recibió el destino o lo que mandó el cliente */
+export type VolumeAmountBasis = "received" | "sent";
 
 export interface Distributor {
   id: string;
@@ -56,6 +58,7 @@ export interface CommissionSettings {
   networkLevelPercents: number[];
   settlementPeriod: SettlementPeriod;
   inactiveDistributorShare: InactiveShare;
+  volumeAmountBasis: VolumeAmountBasis;
 }
 
 /** Un distribuidor de la red de otro */

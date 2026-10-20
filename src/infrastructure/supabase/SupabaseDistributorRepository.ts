@@ -110,6 +110,7 @@ export class SupabaseDistributorRepository {
       networkLevelPercents: Array.isArray(d.network_level_percents) ? d.network_level_percents.map(num) : [],
       settlementPeriod: d.settlement_period ?? "instant",
       inactiveDistributorShare: d.inactive_distributor_share ?? "magnate",
+      volumeAmountBasis: d.volume_amount_basis === "sent" ? "sent" : "received",
     };
   }
 
@@ -119,6 +120,7 @@ export class SupabaseDistributorRepository {
       p_network_level_percents: settings.networkLevelPercents,
       p_settlement_period: settings.settlementPeriod,
       p_inactive_distributor_share: settings.inactiveDistributorShare,
+      p_volume_amount_basis: settings.volumeAmountBasis,
     });
     if (error) throw new Error(dbErrorMessage(error.message));
   }
