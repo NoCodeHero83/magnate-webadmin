@@ -21,7 +21,7 @@ export function PeriodSelect({ value, onChange, className }: PeriodSelectProps) 
         <CalendarRange className="h-4 w-4 mr-2" />
         <SelectValue placeholder="Período" />
       </SelectTrigger>
-      <SelectContent className="glass-card">
+      <SelectContent>
         {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
           <SelectItem key={key} value={key}>
             {PERIOD_LABELS[key]}

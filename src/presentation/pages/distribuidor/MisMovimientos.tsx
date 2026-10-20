@@ -51,7 +51,7 @@ const MisMovimientos = () => {
               <SelectTrigger className="w-full sm:w-56 bg-card border-border/50">
                 <SelectValue placeholder="CVU" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos los CVUs</SelectItem>
                 {accounts.map((a) => (
                   <SelectItem key={a.accountId} value={a.accountId}>
@@ -64,7 +64,7 @@ const MisMovimientos = () => {
               <SelectTrigger className="w-full sm:w-40 bg-card border-border/50">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Entradas y salidas</SelectItem>
                 <SelectItem value="in">Solo entradas</SelectItem>
                 <SelectItem value="out">Solo salidas</SelectItem>

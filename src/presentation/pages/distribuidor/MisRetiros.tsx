@@ -147,7 +147,7 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
                 <Label>Red</Label>
                 <Select value={network} onValueChange={(v) => setNetwork(v as UsdtNetwork)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="glass-card">
+                  <SelectContent>
                     {enabledNetworks.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
                   </SelectContent>
                 </Select>

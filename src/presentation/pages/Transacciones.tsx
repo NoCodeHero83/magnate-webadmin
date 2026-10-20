@@ -234,7 +234,7 @@ const Transacciones = () => {
               <SelectTrigger className="w-40 bg-card border-border/50">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="completed">Completado</SelectItem>
                 <SelectItem value="processing">Procesando</SelectItem>

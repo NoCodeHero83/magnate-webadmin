@@ -192,7 +192,7 @@ export function FeeRuleDialog({ open, onOpenChange, rule, scope = "account" }: F
                 <SelectTrigger>
                   <SelectValue placeholder="Elige el distribuidor" />
                 </SelectTrigger>
-                <SelectContent className="glass-card">
+                <SelectContent>
                   {distributors.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
@@ -261,7 +261,7 @@ export function FeeRuleDialog({ open, onOpenChange, rule, scope = "account" }: F
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass-card">
+                <SelectContent>
                   {(Object.keys(FEE_OPERATION_LABELS) as FeeOperation[]).map((op) => (
                     <SelectItem key={op} value={op}>
                       {FEE_OPERATION_LABELS[op]}

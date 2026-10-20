@@ -173,12 +173,6 @@ layer(base);
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-md);
-  transition: var(--transition-premium);
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl);
-  }
 }
 
 @utility gradient-border {
@@ -282,25 +276,6 @@ layer(base);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-@utility hover-scale {
-  /* Hover Scale */
-  transition: var(--transition-smooth);
-
-  &:hover {
-    transform: scale(1.02);
-  }
-}
-
-@utility hover-lift {
-  /* Hover Lift */
-  transition: var(--transition-premium);
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-xl);
-  }
 }
 
 @utility scrollbar-thin {

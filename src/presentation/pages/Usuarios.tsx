@@ -408,7 +408,7 @@ const Usuarios = () => {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-card">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem
               className="gap-2"
               onClick={() => handleViewDetails(item)}
@@ -516,7 +516,7 @@ const Usuarios = () => {
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="verified">Activos</SelectItem>
                 <SelectItem value="pending">Pendientes</SelectItem>
@@ -535,7 +535,7 @@ const Usuarios = () => {
                 <UsersIcon className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Tipo de cuenta" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="personal">Persona Física</SelectItem>
                 <SelectItem value="business">Persona Jurídica</SelectItem>
@@ -552,7 +552,7 @@ const Usuarios = () => {
                 <Handshake className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Distribuidor" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos los distribuidores</SelectItem>
                 <SelectItem value="none">Sin distribuidor</SelectItem>
                 {distributors.map((d) => (
@@ -785,7 +785,7 @@ const Usuarios = () => {
               <SelectTrigger>
                 <SelectValue placeholder="Elige un distribuidor" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="none">Sin distribuidor (todo para Magnate)</SelectItem>
                 {distributors
                   .filter((d) => d.status === "active")

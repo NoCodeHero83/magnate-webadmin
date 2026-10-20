@@ -53,7 +53,7 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass-card">
+            <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {user?.role === "admin" && (

@@ -142,7 +142,7 @@ export function CommissionSettingsCard() {
             <Label>Liquidación</Label>
             <Select value={settlement} onValueChange={(v) => setSettlement(v as SettlementPeriod)}>
               <SelectTrigger className="sm:max-w-sm"><SelectValue /></SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 {(Object.keys(SETTLEMENT_LABELS) as SettlementPeriod[]).map((p) => (
                   <SelectItem key={p} value={p}>{SETTLEMENT_LABELS[p]}</SelectItem>
                 ))}

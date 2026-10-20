@@ -352,7 +352,7 @@ function CommissionConfigDialog({
             <Label>Quién lo trajo</Label>
             <Select value={parentId} onValueChange={setParentId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value={NONE}>Nadie (no está en la red de otro)</SelectItem>
                 {distributors
                   .filter((d) => d.id !== distributor?.id)
@@ -384,7 +384,7 @@ function CommissionConfigDialog({
             <Label>Cobra de su red</Label>
             <Select value={network} onValueChange={setNetwork}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value={GENERAL}>Configuración general: {generalNetwork}</SelectItem>
                 <SelectItem value="yes">Sí</SelectItem>
                 <SelectItem value="no">No, lo de su red queda para Magnate</SelectItem>
@@ -396,7 +396,7 @@ function CommissionConfigDialog({
             <Label>Liquidación</Label>
             <Select value={settlement} onValueChange={setSettlement}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value={GENERAL}>Configuración general: {generalSettlement}</SelectItem>
                 {(Object.keys(SETTLEMENT_LABELS) as SettlementPeriod[]).map((p) => (
                   <SelectItem key={p} value={p}>{SETTLEMENT_LABELS[p]}</SelectItem>
@@ -750,7 +750,7 @@ const Distribuidores = () => {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-card">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem className="gap-2" onClick={() => open(setReportOpen, d)}>
               <BarChart3 className="h-4 w-4" /> Ver CVUs y comisiones
             </DropdownMenuItem>
