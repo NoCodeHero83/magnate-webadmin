@@ -33,10 +33,11 @@ const Dashboard = () => {
 
   const recentTransactions = transactions.map((tx) => ({
     id: tx.referenceNumber || tx.id.substring(0, 8),
-    user: tx.isIncoming
-      ? tx.fromUserName || "Externo"
-      : tx.toUserName || "Externo",
-    type: tx.isIncoming ? "Ingreso" : "Egreso",
+    // En una comisión interesa quién la pagó, no la cuenta de comisiones que la recibe
+    user: (tx.isCommission || tx.isIncoming ? tx.fromUserName : tx.toUserName) || "Externo",
+    type: tx.isCommission
+      ? tx.metadata?.split ? "Reparto comisión" : "Comisión"
+      : tx.isIncoming ? "Ingreso" : "Egreso",
     amount: `$${parseFloat(tx.amount).toFixed(2)}`,
     status: tx.status,
     date: new Date(tx.createdAt).toLocaleString("es-AR", {
