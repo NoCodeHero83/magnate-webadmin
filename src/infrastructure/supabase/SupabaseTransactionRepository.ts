@@ -28,7 +28,9 @@ interface DbTransaction {
 
 export class SupabaseTransactionRepository implements ITransactionRepository {
     private mapToEntity(dbTx: DbTransaction, fromUserName?: string, toUserName?: string): Transaction {
-        const isIncoming = dbTx.metadata?.is_incoming === true;
+        // Sin cuenta de origen y con destino en la billetera (depósitos, cargas) también es un ingreso
+        const isIncoming =
+            dbTx.metadata?.is_incoming === true || (!dbTx.from_account_id && !!dbTx.to_account_id);
 
         return {
             id: dbTx.id,
