@@ -75,7 +75,7 @@ function ResolveWithdrawalDialog({ withdrawal, mode, onClose }: { withdrawal: Wi
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{mode === "reject" ? "Rechazar retiro" : "Marcar como pagado"}</DialogTitle>
           <DialogDescription>

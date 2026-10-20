@@ -73,7 +73,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         onOpenChange(value);
       }}
     >
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Cambiar contraseña</DialogTitle>
           <DialogDescription>Usa al menos {MIN_LENGTH} caracteres.</DialogDescription>

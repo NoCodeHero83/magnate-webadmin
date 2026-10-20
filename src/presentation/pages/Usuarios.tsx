@@ -771,7 +771,7 @@ const Usuarios = () => {
 
       {/* ── Asignar distribuidor ─────────────────────────────────────────── */}
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent className="glass-card sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Asignar distribuidor</DialogTitle>
             <DialogDescription>
@@ -813,7 +813,7 @@ const Usuarios = () => {
 
       {/* ── Suspend Dialog ─────────────────────────────────────────────── */}
       <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
-        <DialogContent className="glass-card">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedUser?.verificationStatus === "suspended"
@@ -864,7 +864,7 @@ const Usuarios = () => {
 
       {/* ── Límite Operacional Dialog ───────────────────────────────────── */}
       <Dialog open={limitsDialogOpen} onOpenChange={setLimitsDialogOpen}>
-        <DialogContent className="glass-card sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Límite Operacional</DialogTitle>
             <DialogDescription>

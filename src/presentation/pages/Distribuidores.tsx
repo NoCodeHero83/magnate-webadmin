@@ -140,7 +140,7 @@ function DistributorFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{distributor ? "Editar distribuidor" : "Nuevo distribuidor"}</DialogTitle>
           <DialogDescription>
@@ -235,7 +235,7 @@ function AccessDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Dar acceso al panel</DialogTitle>
           <DialogDescription>
@@ -342,7 +342,7 @@ function CommissionConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Comisiones y red de {distributor?.name}</DialogTitle>
           <DialogDescription>Lo que no configures acá usa la configuración general (Configuración → Comisiones de distribuidores).</DialogDescription>
@@ -474,7 +474,7 @@ function AdjustDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Ajustar saldo de {distributor?.name}</DialogTitle>
           <DialogDescription>
@@ -549,7 +549,7 @@ function DistributorReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{distributor?.name}</DialogTitle>
           <DialogDescription>
@@ -832,7 +832,7 @@ const Distribuidores = () => {
       <AdjustDialog distributor={selected} open={adjustOpen} onOpenChange={setAdjustOpen} />
 
       <AlertDialog open={!!toToggle} onOpenChange={(value) => !value && setToToggle(null)}>
-        <AlertDialogContent className="glass-card">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {toToggle?.status === "active" ? `¿Desactivar a ${toToggle?.name}?` : `¿Activar a ${toToggle?.name}?`}

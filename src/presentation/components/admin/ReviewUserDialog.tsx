@@ -56,7 +56,7 @@ export function ReviewUserDialog({ user, decision, open, onOpenChange }: ReviewU
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isReject ? (

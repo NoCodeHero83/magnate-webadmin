@@ -279,7 +279,7 @@ const Comisiones = () => {
       <FeeRuleDialog open={dialogOpen} onOpenChange={setDialogOpen} rule={editing} scope={newScope} />
 
       <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
-        <AlertDialogContent className="glass-card">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar regla</AlertDialogTitle>
             <AlertDialogDescription>

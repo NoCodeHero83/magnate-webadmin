@@ -99,7 +99,7 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Solicitar retiro</DialogTitle>
           <DialogDescription>Disponible: {formatARS(available)}</DialogDescription>
@@ -271,7 +271,7 @@ const MisRetiros = () => {
       <RequestWithdrawalDialog open={requestOpen} onOpenChange={setRequestOpen} available={available} />
 
       <AlertDialog open={!!toCancel} onOpenChange={(open) => !open && setToCancel(null)}>
-        <AlertDialogContent className="glass-card">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Cancelar la solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
