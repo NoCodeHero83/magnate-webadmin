@@ -7,6 +7,7 @@ import { SupabaseSupportRepository } from "@/infrastructure/supabase/SupabaseSup
 import { ApprovalSettingsCard } from "@/presentation/components/admin/ApprovalSettingsCard";
 import { WithdrawalSettingsCard } from "@/presentation/components/admin/WithdrawalSettingsCard";
 import { CommissionSettingsCard } from "@/presentation/components/admin/CommissionSettingsCard";
+import { EnvironmentSettingsCard } from "@/presentation/components/admin/EnvironmentSettingsCard";
 import {
   Save,
   Building,
@@ -90,6 +91,7 @@ const Configuracion = () => {
       />
 
       <div className="p-4 md:p-6 space-y-6">
+        <EnvironmentSettingsCard />
         <ApprovalSettingsCard />
         <CommissionSettingsCard />
         <WithdrawalSettingsCard />

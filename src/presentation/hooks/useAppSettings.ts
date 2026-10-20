@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SupabaseAppSettingsRepository, ApprovalSettingKey, ApprovalSettings } from "../../infrastructure/supabase/SupabaseAppSettingsRepository";
+import {
+    SupabaseAppSettingsRepository,
+    ApprovalSettingKey,
+    ApprovalSettings,
+    AppEnvironment,
+    IdentityVerificationMode,
+} from "../../infrastructure/supabase/SupabaseAppSettingsRepository";
 
 const appSettingsRepository = new SupabaseAppSettingsRepository();
 
@@ -34,5 +40,21 @@ export function useUpdateApprovalSetting() {
             if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    });
+}
+
+export function useEnvironmentSettings() {
+    return useQuery({
+        queryKey: ["app-settings", "environment"],
+        queryFn: () => appSettingsRepository.getEnvironmentSettings(),
+    });
+}
+
+export function useSaveEnvironmentSettings() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ environment, identityVerification }: { environment: AppEnvironment; identityVerification: IdentityVerificationMode }) =>
+            appSettingsRepository.setEnvironmentSettings(environment, identityVerification),
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ["app-settings", "environment"] }),
     });
 }
