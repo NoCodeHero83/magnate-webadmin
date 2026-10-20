@@ -14,6 +14,8 @@ export type IdentityVerificationMode = "zapsign" | "simulated";
 export interface EnvironmentSettings {
     environment: AppEnvironment;
     identityVerification: IdentityVerificationMode;
+    /** Los códigos enviados por email también se muestran en pantalla (solo en desarrollo) */
+    showCodesOnScreen: boolean;
     /** Credenciales de ZapSign cargadas en Supabase Vault (no se leen sus valores) */
     sandboxConfigured: boolean;
     productionConfigured: boolean;
@@ -65,6 +67,7 @@ export class SupabaseAppSettingsRepository {
         return {
             environment: d.environment === "production" ? "production" : "development",
             identityVerification: d.identity_verification === "simulated" ? "simulated" : "zapsign",
+            showCodesOnScreen: d.show_codes_on_screen === true,
             sandboxConfigured: !!d.sandbox_configured,
             productionConfigured: !!d.production_configured,
             productionBiometric: !!d.production_biometric,
@@ -72,10 +75,15 @@ export class SupabaseAppSettingsRepository {
         };
     }
 
-    async setEnvironmentSettings(environment: AppEnvironment, identityVerification: IdentityVerificationMode): Promise<void> {
+    async setEnvironmentSettings(
+        environment: AppEnvironment,
+        identityVerification: IdentityVerificationMode,
+        showCodesOnScreen: boolean
+    ): Promise<void> {
         const { error } = await supabase.rpc("admin_set_environment_settings", {
             p_environment: environment,
             p_identity_verification: identityVerification,
+            p_show_codes_on_screen: showCodesOnScreen,
         });
         if (error) throw new Error(dbErrorMessage(error.message));
     }

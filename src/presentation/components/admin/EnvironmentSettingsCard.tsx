@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Server, ScanFace, CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
+import { Server, ScanFace, MailCheck, CheckCircle2, XCircle, Info, Loader2 } from "lucide-react";
 import { Switch } from "@/presentation/components/ui/switch";
 import { Label } from "@/presentation/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/presentation/components/ui/select";
@@ -42,9 +42,14 @@ export function EnvironmentSettingsCard() {
   const save = useSaveEnvironmentSettings();
   const [confirmProduction, setConfirmProduction] = useState(false);
 
-  const apply = async (environment: AppEnvironment, identityVerification: IdentityVerificationMode, message: string) => {
+  const apply = async (
+    environment: AppEnvironment,
+    identityVerification: IdentityVerificationMode,
+    showCodesOnScreen: boolean,
+    message: string
+  ) => {
     try {
-      await save.mutateAsync({ environment, identityVerification });
+      await save.mutateAsync({ environment, identityVerification, showCodesOnScreen });
       toast.success(message);
     } catch (error: any) {
       toast.error(error?.message || "No se pudo guardar la configuración");
@@ -57,7 +62,7 @@ export function EnvironmentSettingsCard() {
       setConfirmProduction(true);
       return;
     }
-    apply("development", settings.identityVerification, "Entorno de desarrollo activado");
+    apply("development", settings.identityVerification, settings.showCodesOnScreen, "Entorno de desarrollo activado");
   };
 
   return (
@@ -135,7 +140,37 @@ export function EnvironmentSettingsCard() {
                 apply(
                   settings.environment,
                   value ? "simulated" : "zapsign",
+                  settings.showCodesOnScreen,
                   value ? "Verificación simulada activada" : "Verificación con ZapSign activada"
+                )
+              }
+            />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-border/50 p-4">
+            <div className="flex gap-3">
+              <MailCheck className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+              <div>
+                <Label htmlFor="show-codes" className="font-medium text-foreground cursor-pointer">
+                  Mostrar los códigos en pantalla
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {settings.environment === "production"
+                    ? "No disponible en producción."
+                    : "Los códigos que se envían por email (registro, dispositivo nuevo, cambio de PIN y transferencias web) también aparecen en pantalla, por si el correo no llega. Solo para pruebas."}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="show-codes"
+              checked={settings.showCodesOnScreen}
+              disabled={save.isPending || settings.environment === "production"}
+              onCheckedChange={(value) =>
+                apply(
+                  settings.environment,
+                  settings.identityVerification,
+                  value,
+                  value ? "Los códigos se muestran en pantalla" : "Los códigos ya no se muestran en pantalla"
                 )
               }
             />
@@ -153,14 +188,14 @@ export function EnvironmentSettingsCard() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Pasar a producción?</AlertDialogTitle>
             <AlertDialogDescription>
-              La verificación de identidad pasa a usar ZapSign real, con costo por cada verificación. Si la
-              verificación simulada está activa, se apaga. Desde ese momento, el registro exige una verificación
+              La verificación de identidad pasa a usar ZapSign real, con costo por cada verificación. La
+              verificación simulada y los códigos en pantalla se apagan. Desde ese momento, el registro exige una verificación
               real aprobada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => apply("production", "zapsign", "Entorno de producción activado")}>
+            <AlertDialogAction onClick={() => apply("production", "zapsign", false, "Entorno de producción activado")}>
               Pasar a producción
             </AlertDialogAction>
           </AlertDialogFooter>

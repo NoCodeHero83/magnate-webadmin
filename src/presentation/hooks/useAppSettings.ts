@@ -53,8 +53,15 @@ export function useEnvironmentSettings() {
 export function useSaveEnvironmentSettings() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ environment, identityVerification }: { environment: AppEnvironment; identityVerification: IdentityVerificationMode }) =>
-            appSettingsRepository.setEnvironmentSettings(environment, identityVerification),
+        mutationFn: ({
+            environment,
+            identityVerification,
+            showCodesOnScreen,
+        }: {
+            environment: AppEnvironment;
+            identityVerification: IdentityVerificationMode;
+            showCodesOnScreen: boolean;
+        }) => appSettingsRepository.setEnvironmentSettings(environment, identityVerification, showCodesOnScreen),
         onSettled: () => queryClient.invalidateQueries({ queryKey: ["app-settings", "environment"] }),
     });
 }
