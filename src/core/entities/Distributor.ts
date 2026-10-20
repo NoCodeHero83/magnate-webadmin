@@ -141,17 +141,29 @@ export interface AccountVolume {
 export type FeeOperation = "payin" | "payout" | "internal_out" | "internal_in";
 
 export const FEE_OPERATION_LABELS: Record<FeeOperation, string> = {
-  payin: "Ingreso desde fuera (pay-in)",
-  payout: "Envío fuera de la billetera (pay-out)",
-  internal_out: "Transferencia interna: envía",
-  internal_in: "Transferencia interna: recibe",
+  payin: "Dinero que entra desde otro banco",
+  payout: "Envío a otro banco o billetera",
+  internal_out: "Transferencia entre usuarios Magnate: al que envía",
+  internal_in: "Transferencia entre usuarios Magnate: al que recibe",
+};
+
+/** Explicación de cada operación, para el que configura las reglas */
+export const FEE_OPERATION_HELP: Record<FeeOperation, string> = {
+  payin:
+    "Cuando alguien le manda dinero al CVU del cliente desde otro banco o billetera (Mercado Pago, un banco, etc.). Se le cobra al cliente que recibe. Se aplicará cuando esté integrado el banco.",
+  payout:
+    "Cuando el cliente transfiere desde Magnate a un CBU o CVU de otro banco o billetera. Se le cobra al cliente que envía.",
+  internal_out:
+    "Cuando el cliente le transfiere a otro usuario de Magnate (por alias o CVU de Magnate). Se le cobra al que envía.",
+  internal_in:
+    "En esa misma transferencia entre usuarios Magnate, se le cobra al que recibe. Para no cobrarle, deja la tasa en 0.",
 };
 
 export const FEE_OPERATION_SHORT: Record<FeeOperation, string> = {
-  payin: "Pay-in",
-  payout: "Pay-out",
-  internal_out: "Interna (envía)",
-  internal_in: "Interna (recibe)",
+  payin: "Entra de otro banco",
+  payout: "Envío a otro banco",
+  internal_out: "Entre usuarios (envía)",
+  internal_in: "Entre usuarios (recibe)",
 };
 
 /** Las operaciones salientes pueden cobrar la comisión aparte; las entrantes siempre la descuentan */

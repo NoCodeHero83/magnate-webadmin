@@ -26,6 +26,7 @@ import {
   FeeOperation,
   FeeRule,
   FeeRuleInput,
+  FEE_OPERATION_HELP,
   FEE_OPERATION_LABELS,
   OUTGOING_OPERATIONS,
   isDefaultRule,
@@ -272,6 +273,7 @@ export function FeeRuleDialog({ open, onOpenChange, rule, scope = "account" }: F
             ) : (
               <p className="text-sm">{FEE_OPERATION_LABELS[operation]}</p>
             )}
+            <p className="text-xs text-muted-foreground">{FEE_OPERATION_HELP[operation]}</p>
           </div>
 
           <div className="grid gap-4 grid-cols-2">

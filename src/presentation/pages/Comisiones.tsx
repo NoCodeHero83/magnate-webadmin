@@ -217,9 +217,9 @@ const Comisiones = () => {
           )}
           <p className="text-xs text-muted-foreground flex items-start gap-2">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />
-            En una transferencia entre dos CVUs de la billetera se aplican las dos reglas internas: "envía" a quien
-            transfiere y "recibe" a quien recibe. Para no cobrarle a uno de los dos, deja su tasa en 0. Pay-in se
-            aplicará cuando esté integrado el banco.
+            En una transferencia entre dos usuarios Magnate se aplican las dos reglas "entre usuarios": una al que envía y
+            otra al que recibe. Para no cobrarle a uno de los dos, deja su tasa en 0. "Dinero que entra desde otro banco"
+            se aplicará cuando esté integrado el banco.
           </p>
         </section>
 
