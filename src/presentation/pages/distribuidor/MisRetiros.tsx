@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Wallet, Lock, CheckCircle2, Plus, Loader2, Info } from "lucide-react";
+import { Wallet, Lock, CheckCircle2, Plus, Loader2, Info, Hourglass } from "lucide-react";
 import { Header } from "@/presentation/components/admin/Header";
 import { StatsCard } from "@/presentation/components/admin/StatsCard";
 import { WithdrawalsTable } from "@/presentation/components/admin/WithdrawalsTable";
@@ -40,7 +40,8 @@ import {
   useWithdrawalSettings,
 } from "@/presentation/hooks/useWithdrawals";
 import { UsdtNetwork, USDT_NETWORKS, Withdrawal, WithdrawalCurrency } from "@/core/entities/Withdrawal";
-import { formatARS } from "@/lib/format";
+import { SETTLEMENT_LABELS } from "@/core/entities/Distributor";
+import { formatARS, formatDateTime } from "@/lib/format";
 
 const ALIAS_OR_CBU = /^(\d{22}|[a-z0-9.-]{6,20})$/;
 const WALLET = /^[A-Za-z0-9]{26,64}$/;
@@ -53,6 +54,7 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
   const [destination, setDestination] = useState("");
   const [holderName, setHolderName] = useState("");
   const [wallet, setWallet] = useState("");
+  const enabledNetworks = USDT_NETWORKS.filter((n) => (settings?.usdtNetworks ?? ["TRC20", "BEP20"]).includes(n.value));
   const [network, setNetwork] = useState<UsdtNetwork>("TRC20");
 
   useEffect(() => {
@@ -62,8 +64,9 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
       setDestination("");
       setHolderName("");
       setWallet("");
-      setNetwork("TRC20");
+      setNetwork(enabledNetworks[0]?.value ?? "TRC20");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, available]);
 
   const minAmount = settings?.minAmount ?? 0;
@@ -145,7 +148,7 @@ function RequestWithdrawalDialog({ open, onOpenChange, available }: { open: bool
                 <Select value={network} onValueChange={(v) => setNetwork(v as UsdtNetwork)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent className="glass-card">
-                    {USDT_NETWORKS.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
+                    {enabledNetworks.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -208,6 +211,17 @@ const MisRetiros = () => {
     <div className="animate-fade-in">
       <Header title="Mis retiros" subtitle="Retira tus comisiones en pesos o USDT" />
       <div className="p-4 md:p-6 space-y-6">
+        {balance && balance.settlementPeriod !== "instant" && (
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-4 text-sm flex items-start gap-3">
+            <Hourglass className="h-5 w-5 shrink-0 text-warning" />
+            <p>
+              Liquidación {SETTLEMENT_LABELS[balance.settlementPeriod].toLowerCase()}. Lo ganado en el período en curso (
+              <span className="font-semibold tabular-nums">{formatARS(balance.inProgress)}</span>) se puede retirar cuando cierre
+              {balance.releaseAt ? `, el ${formatDateTime(balance.releaseAt)}` : ""}.
+            </p>
+          </div>
+        )}
+
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           <StatsCard title="Saldo de comisiones" value={money(balance?.balance)} icon={Wallet} iconColor="from-primary to-accent" />
           <StatsCard

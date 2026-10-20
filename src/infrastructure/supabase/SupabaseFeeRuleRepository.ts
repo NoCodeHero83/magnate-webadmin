@@ -6,6 +6,7 @@ const OPERATION_ORDER: FeeOperation[] = ["payin", "payout", "internal_out", "int
 
 function ruleErrorMessage(message: string): string {
   if (message.includes("fee_rules_account_uq")) return "Ese CVU ya tiene una regla para esa operación. Edítala en lugar de crear otra.";
+  if (message.includes("fee_rules_distributor_uq")) return "Ese distribuidor ya tiene una regla para esa operación. Edítala en lugar de crear otra.";
   if (message.includes("fee_rules_incoming_deduct")) return "En las operaciones que entran, la comisión siempre se descuenta de lo recibido.";
   if (message.includes("max_amount")) return "El máximo no puede ser menor que el mínimo.";
   const known = message.match(/^[A-Z_]+: (.+)$/);
@@ -17,7 +18,7 @@ export class SupabaseFeeRuleRepository {
   async list(): Promise<FeeRule[]> {
     const { data, error } = await supabase
       .from("fee_rules")
-      .select("*, accounts(alias, cvu)")
+      .select("*, accounts(alias, cvu), distributors!fee_rules_distributor_id_fkey(name)")
       .order("updated_at", { ascending: false });
     if (error) throw new Error(ruleErrorMessage(error.message));
 
@@ -47,6 +48,8 @@ export class SupabaseFeeRuleRepository {
       .map((r) => ({
         id: r.id,
         accountId: r.account_id,
+        distributorId: r.distributor_id ?? null,
+        distributorName: r.distributors?.name,
         accountAlias: r.accounts?.alias,
         accountCvu: r.accounts?.cvu,
         holderName: r.account_id ? holders.get(r.account_id) : undefined,
@@ -56,12 +59,12 @@ export class SupabaseFeeRuleRepository {
         minAmount: Number(r.min_amount) || 0,
         maxAmount: r.max_amount === null ? null : Number(r.max_amount),
         chargeMode: r.charge_mode,
-        magnateSharePercent: Number(r.magnate_share_percent),
+        magnateSharePercent: r.magnate_share_percent === null ? null : Number(r.magnate_share_percent),
         isActive: r.is_active,
         updatedAt: r.updated_at,
       }))
       .sort((a, b) =>
-        a.accountId === b.accountId
+        a.accountId === b.accountId && a.distributorId === b.distributorId
           ? OPERATION_ORDER.indexOf(a.operation) - OPERATION_ORDER.indexOf(b.operation)
           : 0
       );
@@ -70,6 +73,7 @@ export class SupabaseFeeRuleRepository {
   private toRow(input: FeeRuleInput) {
     return {
       account_id: input.accountId,
+      distributor_id: input.distributorId,
       operation: input.operation,
       rate_percent: input.ratePercent,
       fixed_amount: input.fixedAmount,
@@ -87,7 +91,7 @@ export class SupabaseFeeRuleRepository {
   }
 
   async update(id: string, input: FeeRuleInput): Promise<void> {
-    const { account_id: _accountId, operation: _operation, ...changes } = this.toRow(input);
+    const { account_id: _accountId, distributor_id: _distributorId, operation: _operation, ...changes } = this.toRow(input);
     const { error } = await supabase.from("fee_rules").update(changes).eq("id", id);
     if (error) throw new Error(ruleErrorMessage(error.message));
   }

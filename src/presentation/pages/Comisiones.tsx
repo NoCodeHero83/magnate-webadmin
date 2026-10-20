@@ -24,7 +24,7 @@ import {
   useFeeRuleMutations,
   useFeeRules,
 } from "@/presentation/hooks/useDistributors";
-import { FeeRule, FEE_OPERATION_LABELS, FEE_OPERATION_SHORT, OUTGOING_OPERATIONS } from "@/core/entities/Distributor";
+import { FeeRule, FEE_OPERATION_LABELS, FEE_OPERATION_SHORT, OUTGOING_OPERATIONS, isDefaultRule } from "@/core/entities/Distributor";
 import { formatARS, formatPercent, getPeriod, PeriodKey } from "@/lib/format";
 
 /** "1 % + $ 5,00 (mín. $ 2,00, máx. $ 500,00)" */
@@ -55,14 +55,17 @@ const Comisiones = () => {
   const { remove } = useFeeRuleMutations();
 
   const [editing, setEditing] = useState<FeeRule | null>(null);
+  const [newScope, setNewScope] = useState<"account" | "distributor">("account");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [toDelete, setToDelete] = useState<FeeRule | null>(null);
 
-  const defaultRules = rules.filter((r) => r.accountId === null);
+  const defaultRules = rules.filter(isDefaultRule);
+  const distributorRules = rules.filter((r) => r.distributorId !== null);
   const accountRules = rules.filter((r) => r.accountId !== null);
 
-  const openDialog = (rule: FeeRule | null) => {
+  const openDialog = (rule: FeeRule | null, scope: "account" | "distributor" = "account") => {
     setEditing(rule);
+    setNewScope(scope);
     setDialogOpen(true);
   };
 
@@ -78,7 +81,14 @@ const Comisiones = () => {
     }
   };
 
-  const ruleColumns = (withAccount: boolean) => [
+  const ruleColumns = (withAccount: boolean, withDistributor = false) => [
+    ...(withDistributor
+      ? [{
+        key: "distributor",
+        header: "Distribuidor",
+        render: (r: FeeRule) => <p className="font-medium text-foreground truncate">{r.distributorName ?? "—"}</p>,
+      }]
+      : []),
     ...(withAccount
       ? [{
         key: "account",
@@ -94,7 +104,7 @@ const Comisiones = () => {
     {
       key: "operation",
       header: "Operación",
-      render: (r: FeeRule) => (withAccount ? FEE_OPERATION_SHORT[r.operation] : FEE_OPERATION_LABELS[r.operation]),
+      render: (r: FeeRule) => (withAccount || withDistributor ? FEE_OPERATION_SHORT[r.operation] : FEE_OPERATION_LABELS[r.operation]),
     },
     { key: "fee", header: "Comisión", className: "tabular-nums", render: (r: FeeRule) => describeFee(r) },
     { key: "mode", header: "Cobro", className: "hidden lg:table-cell", render: (r: FeeRule) => chargeModeLabel(r) },
@@ -102,9 +112,14 @@ const Comisiones = () => {
       key: "share",
       header: "Magnate / Distribuidor",
       className: "hidden md:table-cell tabular-nums",
-      render: (r: FeeRule) => `${formatPercent(r.magnateSharePercent)} / ${formatPercent(100 - r.magnateSharePercent)}`,
+      render: (r: FeeRule) =>
+        r.magnateSharePercent === null ? (
+          <span className="text-muted-foreground text-sm">% del distribuidor</span>
+        ) : (
+          `${formatPercent(r.magnateSharePercent)} / ${formatPercent(100 - r.magnateSharePercent)}`
+        ),
     },
-    ...(withAccount
+    ...(withAccount || withDistributor
       ? [{
         key: "active",
         header: "Estado",
@@ -124,7 +139,7 @@ const Comisiones = () => {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog(r)} aria-label="Editar regla">
             <Pencil className="h-4 w-4" />
           </Button>
-          {withAccount && (
+          {(withAccount || withDistributor) && (
             <Button
               variant="ghost"
               size="icon"
@@ -168,6 +183,7 @@ const Comisiones = () => {
             <StatsCard
               title="Parte de distribuidores"
               value={summaryLoading ? "…" : formatARS(summary?.distributorTotal)}
+              change={summary?.networkTotal ? `Más ${formatARS(summary.networkTotal)} de red` : undefined}
               icon={Handshake}
               iconColor="from-success/80 to-success"
             />
@@ -186,7 +202,8 @@ const Comisiones = () => {
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">Reglas por defecto</h2>
             <p className="text-sm text-muted-foreground">
-              Se aplican a todos los CVUs que no tienen una regla propia. Los cambios valen para las operaciones nuevas.
+              Se aplican a todos los CVUs que no tienen una regla propia ni de su distribuidor. Los cambios valen para las
+              operaciones nuevas. El % de un distribuidor que tenga su propio reparto reemplaza la columna Magnate / Distribuidor.
             </p>
           </div>
           {rulesLoading ? (
@@ -206,12 +223,35 @@ const Comisiones = () => {
           </p>
         </section>
 
+        {/* Reglas por distribuidor */}
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-foreground">Reglas por distribuidor</h2>
+              <p className="text-sm text-muted-foreground">Valen para todos los CVUs de un distribuidor que no tengan una regla propia.</p>
+            </div>
+            <Button className="gap-2 shrink-0" onClick={() => openDialog(null, "distributor")}>
+              <Plus className="h-4 w-4" />
+              Regla para un distribuidor
+            </Button>
+          </div>
+          {!rulesLoading && distributorRules.length === 0 ? (
+            <div className="premium-card p-8 text-center text-sm text-muted-foreground">
+              Ningún distribuidor tiene reglas propias.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <DataTable columns={ruleColumns(false, true)} data={distributorRules} />
+            </div>
+          )}
+        </section>
+
         {/* Reglas por CVU */}
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <div>
               <h2 className="font-display text-lg font-semibold text-foreground">Reglas por CVU</h2>
-              <p className="text-sm text-muted-foreground">Reemplazan la regla por defecto para un CVU y una operación.</p>
+              <p className="text-sm text-muted-foreground">Reemplazan la regla del distribuidor y la por defecto para un CVU y una operación.</p>
             </div>
             <Button className="gap-2 shrink-0" onClick={() => openDialog(null)}>
               <Plus className="h-4 w-4" />
@@ -236,14 +276,15 @@ const Comisiones = () => {
         </section>
       </div>
 
-      <FeeRuleDialog open={dialogOpen} onOpenChange={setDialogOpen} rule={editing} />
+      <FeeRuleDialog open={dialogOpen} onOpenChange={setDialogOpen} rule={editing} scope={newScope} />
 
       <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent className="glass-card">
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar regla</AlertDialogTitle>
             <AlertDialogDescription>
-              {toDelete?.holderName ?? toDelete?.accountAlias} vuelve a usar la regla por defecto para{" "}
+              {toDelete?.distributorName ?? toDelete?.holderName ?? toDelete?.accountAlias} vuelve a usar la regla{" "}
+              {toDelete?.accountId ? "de su distribuidor o la por defecto" : "por defecto"} para{" "}
               {toDelete ? FEE_OPERATION_LABELS[toDelete.operation].toLowerCase() : ""}.
             </AlertDialogDescription>
           </AlertDialogHeader>

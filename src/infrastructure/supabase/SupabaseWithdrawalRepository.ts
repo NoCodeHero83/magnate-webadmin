@@ -27,7 +27,11 @@ export class SupabaseWithdrawalRepository {
     const { data, error } = await supabase.rpc("withdrawal_settings");
     if (error) throw new Error(dbErrorMessage(error.message));
     const d = (data || {}) as any;
-    return { minAmount: num(d.min_amount), usdtRate: num(d.usdt_rate) };
+    return {
+      minAmount: num(d.min_amount),
+      usdtRate: num(d.usdt_rate),
+      usdtNetworks: Array.isArray(d.usdt_networks) ? d.usdt_networks : ["TRC20", "BEP20"],
+    };
   }
 
   async saveSettings(settings: WithdrawalSettings): Promise<void> {
@@ -36,6 +40,10 @@ export class SupabaseWithdrawalRepository {
       p_usdt_rate: settings.usdtRate,
     });
     if (error) throw new Error(dbErrorMessage(error.message));
+    const { error: networksError } = await supabase.rpc("admin_set_usdt_networks", {
+      p_networks: settings.usdtNetworks,
+    });
+    if (networksError) throw new Error(dbErrorMessage(networksError.message));
   }
 
   /** Para el distribuidor la BD ignora distributorId y usa el suyo */
@@ -46,8 +54,11 @@ export class SupabaseWithdrawalRepository {
     return {
       balance: num(d.balance),
       reserved: num(d.reserved),
+      inProgress: num(d.in_progress),
       available: num(d.available),
       paidTotal: num(d.paid_total),
+      settlementPeriod: d.settlement_period ?? "instant",
+      releaseAt: d.release_at ?? null,
     };
   }
 

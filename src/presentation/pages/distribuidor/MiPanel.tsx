@@ -7,7 +7,7 @@ import { DataTable } from "@/presentation/components/admin/DataTable";
 import { PeriodSelect } from "@/presentation/components/admin/PeriodSelect";
 import { useAccountVolume, useDistributorMe } from "@/presentation/hooks/useDistributors";
 import { useDistributorBalance } from "@/presentation/hooks/useWithdrawals";
-import { AccountVolume } from "@/core/entities/Distributor";
+import { AccountVolume, SETTLEMENT_LABELS } from "@/core/entities/Distributor";
 import { formatARS, getPeriod, PeriodKey, PERIOD_LABELS } from "@/lib/format";
 
 const TOP_ROWS = 5;
@@ -120,14 +120,21 @@ const MiPanel = () => {
           <StatsCard
             title="Tus comisiones"
             value={volumeLoading ? "…" : formatARS(totals.distributorAmount)}
-            change={`Disponible para retirar: ${formatARS(balance?.available ?? me.commissionBalance)}`}
+            change={`Disponible para retirar: ${formatARS(balance?.available ?? me.commissionBalance)}${
+              balance && balance.inProgress > 0 ? ` · En curso: ${formatARS(balance.inProgress)}` : ""
+            }`}
             icon={Coins}
             iconColor="from-warning/80 to-warning"
           />
         </div>
 
-        <div className="flex justify-end">
-          <Link to="/mis-retiros" className="text-sm text-primary hover:underline">Retirar comisiones</Link>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {me.parentName ? `Te trajo ${me.parentName}. ` : ""}
+            {me.networkCount > 0 ? `Trajiste ${me.networkCount} distribuidor${me.networkCount === 1 ? "" : "es"}. ` : ""}
+            Liquidación: {SETTLEMENT_LABELS[me.settlementPeriod].toLowerCase()}.
+          </p>
+          <Link to="/mis-retiros" className="text-sm text-primary hover:underline shrink-0">Retirar comisiones</Link>
         </div>
 
         <div className="space-y-4">

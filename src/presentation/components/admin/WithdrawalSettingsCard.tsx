@@ -4,6 +4,8 @@ import { Wallet, Info, Loader2, Save } from "lucide-react";
 import { Button } from "@/presentation/components/ui/button";
 import { Input } from "@/presentation/components/ui/input";
 import { Label } from "@/presentation/components/ui/label";
+import { Checkbox } from "@/presentation/components/ui/checkbox";
+import { UsdtNetwork, USDT_NETWORKS } from "@/core/entities/Withdrawal";
 import { useSaveWithdrawalSettings, useWithdrawalSettings } from "@/presentation/hooks/useWithdrawals";
 
 /** Monto mínimo de retiro y cotización del USDT para los retiros de los distribuidores */
@@ -12,22 +14,29 @@ export function WithdrawalSettingsCard() {
   const save = useSaveWithdrawalSettings();
   const [minAmount, setMinAmount] = useState("");
   const [usdtRate, setUsdtRate] = useState("");
+  const [networks, setNetworks] = useState<UsdtNetwork[]>([]);
 
   useEffect(() => {
     if (settings) {
       setMinAmount(String(settings.minAmount));
       setUsdtRate(String(settings.usdtRate));
+      setNetworks(settings.usdtNetworks);
     }
   }, [settings]);
 
+  const toggleNetwork = (network: UsdtNetwork, checked: boolean) =>
+    setNetworks(checked ? [...networks, network] : networks.filter((n) => n !== network));
+
   const min = Number(minAmount);
   const rate = Number(usdtRate);
-  const valid = minAmount !== "" && usdtRate !== "" && min >= 0 && rate >= 0;
-  const changed = !!settings && (min !== settings.minAmount || rate !== settings.usdtRate);
+  const valid = minAmount !== "" && usdtRate !== "" && min >= 0 && rate >= 0 && networks.length > 0;
+  const sameNetworks = (a: UsdtNetwork[], b: UsdtNetwork[]) => a.length === b.length && a.every((n) => b.includes(n));
+  const changed =
+    !!settings && (min !== settings.minAmount || rate !== settings.usdtRate || !sameNetworks(networks, settings.usdtNetworks));
 
   const handleSave = async () => {
     try {
-      await save.mutateAsync({ minAmount: min, usdtRate: rate });
+      await save.mutateAsync({ minAmount: min, usdtRate: rate, usdtNetworks: networks });
       toast.success("Configuración de retiros guardada");
     } catch (error: any) {
       toast.error(error?.message || "No se pudo guardar");
@@ -77,6 +86,26 @@ export function WithdrawalSettingsCard() {
                 onChange={(e) => setUsdtRate(e.target.value)}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Redes de USDT habilitadas</Label>
+            <div className="flex flex-wrap gap-2">
+              {USDT_NETWORKS.map((n) => (
+                <label
+                  key={n.value}
+                  htmlFor={`net-${n.value}`}
+                  className="flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2 text-sm cursor-pointer"
+                >
+                  <Checkbox
+                    id={`net-${n.value}`}
+                    checked={networks.includes(n.value)}
+                    onCheckedChange={(v) => toggleNetwork(n.value, v === true)}
+                  />
+                  {n.label}
+                </label>
+              ))}
+            </div>
+            {networks.length === 0 && <p className="text-xs text-destructive">Elige al menos una red.</p>}
           </div>
           <p className="text-xs text-muted-foreground flex items-start gap-2">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />

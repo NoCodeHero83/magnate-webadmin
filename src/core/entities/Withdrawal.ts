@@ -1,3 +1,5 @@
+import { SettlementPeriod } from "./Distributor";
+
 export type WithdrawalCurrency = "ARS" | "USDT";
 export type WithdrawalStatus = "pending" | "paid" | "rejected" | "cancelled";
 export type UsdtNetwork = "TRC20" | "ERC20" | "BEP20" | "POLYGON";
@@ -50,14 +52,21 @@ export interface DistributorBalance {
   balance: number;
   /** Retiros pendientes */
   reserved: number;
+  /** Ganado en el período de liquidación en curso: se libera al cerrar el período */
+  inProgress: number;
   available: number;
   paidTotal: number;
+  settlementPeriod: SettlementPeriod;
+  /** Cuándo se libera lo del período en curso (null = liquidación al instante) */
+  releaseAt: string | null;
 }
 
 export interface WithdrawalSettings {
   minAmount: number;
   /** Pesos por USDT; 0 = retiros en USDT deshabilitados */
   usdtRate: number;
+  /** Redes habilitadas para los retiros en USDT */
+  usdtNetworks: UsdtNetwork[];
 }
 
 export interface WithdrawalRequestInput {

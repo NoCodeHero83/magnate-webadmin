@@ -5,7 +5,7 @@ import {
   DistributorAccessInput,
 } from "../../infrastructure/supabase/SupabaseDistributorRepository";
 import { SupabaseFeeRuleRepository } from "../../infrastructure/supabase/SupabaseFeeRuleRepository";
-import { FeeRuleInput } from "../../core/entities/Distributor";
+import { CommissionSettings, DistributorCommissionInput, FeeRuleInput } from "../../core/entities/Distributor";
 import { Period } from "../../lib/format";
 
 const distributorRepository = new SupabaseDistributorRepository();
@@ -44,6 +44,56 @@ export function useDistributorAccess() {
   };
 }
 
+function useInvalidateDistributorMoney() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: ["distributors"] });
+    queryClient.invalidateQueries({ queryKey: ["distributor-balance"] });
+    queryClient.invalidateQueries({ queryKey: ["distributor-adjustments"] });
+    queryClient.invalidateQueries({ queryKey: ["distributor-periods"] });
+    queryClient.invalidateQueries({ queryKey: ["distributor-network"] });
+    queryClient.invalidateQueries({ queryKey: ["commission-summary"] });
+  };
+}
+
+/** Quién lo trajo, % propio, red y liquidación de un distribuidor */
+export function useSaveDistributorCommission() {
+  const onSettled = useInvalidateDistributorMoney();
+  return useMutation({
+    mutationFn: (input: DistributorCommissionInput) => distributorRepository.saveCommission(input),
+    onSettled,
+  });
+}
+
+export function useAdjustDistributor() {
+  const onSettled = useInvalidateDistributorMoney();
+  return useMutation({
+    mutationFn: ({ distributorId, amount, reason }: { distributorId: string; amount: number; reason: string }) =>
+      distributorRepository.adjust(distributorId, amount, reason),
+    onSettled,
+  });
+}
+
+export function useCommissionSettings(enabled = true) {
+  return useQuery({
+    queryKey: ["commission-settings"],
+    queryFn: () => distributorRepository.getSettings(),
+    enabled,
+  });
+}
+
+export function useSaveCommissionSettings() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateDistributorMoney();
+  return useMutation({
+    mutationFn: (settings: CommissionSettings) => distributorRepository.saveSettings(settings),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["commission-settings"] });
+      invalidate();
+    },
+  });
+}
+
 export function useAssignAccounts() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -79,6 +129,38 @@ export function useCommissionDetail(period: Period, distributorId?: string | nul
   return useQuery({
     queryKey: ["commission-detail", distributorId ?? "all", ...periodKey(period)],
     queryFn: () => distributorRepository.getCommissionDetail(period, distributorId),
+    enabled,
+  });
+}
+
+export function useDistributorNetwork(distributorId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["distributor-network", distributorId ?? "me"],
+    queryFn: () => distributorRepository.getNetwork(distributorId),
+    enabled,
+  });
+}
+
+export function useNetworkDetail(period: Period, distributorId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["distributor-network-detail", distributorId ?? "me", ...periodKey(period)],
+    queryFn: () => distributorRepository.getNetworkDetail(period, distributorId),
+    enabled,
+  });
+}
+
+export function usePeriodSummary(distributorId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["distributor-periods", distributorId ?? "me"],
+    queryFn: () => distributorRepository.getPeriodSummary(distributorId),
+    enabled,
+  });
+}
+
+export function useAdjustments(distributorId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["distributor-adjustments", distributorId ?? "me"],
+    queryFn: () => distributorRepository.getAdjustments(distributorId),
     enabled,
   });
 }

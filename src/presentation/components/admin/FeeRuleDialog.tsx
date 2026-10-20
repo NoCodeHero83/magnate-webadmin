@@ -12,6 +12,7 @@ import { Button } from "@/presentation/components/ui/button";
 import { Input } from "@/presentation/components/ui/input";
 import { Label } from "@/presentation/components/ui/label";
 import { Switch } from "@/presentation/components/ui/switch";
+import { Checkbox } from "@/presentation/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/presentation/components/ui/radio-group";
 import {
   Select,
@@ -27,9 +28,10 @@ import {
   FeeRuleInput,
   FEE_OPERATION_LABELS,
   OUTGOING_OPERATIONS,
+  isDefaultRule,
 } from "@/core/entities/Distributor";
 import { getUserDisplayName, User } from "@/core/entities/User";
-import { useFeeRuleMutations } from "@/presentation/hooks/useDistributors";
+import { useDistributors, useFeeRuleMutations } from "@/presentation/hooks/useDistributors";
 import { useUsers } from "@/presentation/hooks/useUsers";
 import { PaginatedResult } from "@/core/types/pagination";
 import { formatARS } from "@/lib/format";
@@ -39,8 +41,10 @@ const EXAMPLE_AMOUNT = 10000;
 interface FeeRuleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Regla a editar; null = nueva regla para un CVU */
+  /** Regla a editar; null = nueva regla */
   rule: FeeRule | null;
+  /** Para una regla nueva: de un CVU o de un distribuidor (todos sus CVUs) */
+  scope?: "account" | "distributor";
 }
 
 /** Misma fórmula que la BD (_fee_amount) para el ejemplo */
@@ -54,9 +58,12 @@ function exampleFee(rate: number, fixed: number, min: number, max: number | null
 
 const parse = (value: string) => (value.trim() === "" ? NaN : Number(value.replace(",", ".")));
 
-export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) {
+export function FeeRuleDialog({ open, onOpenChange, rule, scope = "account" }: FeeRuleDialogProps) {
   const { create, update } = useFeeRuleMutations();
   const isNew = !rule;
+  const isDefault = !!rule && isDefaultRule(rule);
+  const forDistributor = rule ? rule.distributorId !== null : scope === "distributor";
+  const { data: distributors = [] } = useDistributors(open && isNew && forDistributor);
 
   const [operation, setOperation] = useState<FeeOperation>("internal_out");
   const [rate, setRate] = useState("0");
@@ -65,6 +72,9 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
   const [max, setMax] = useState("");
   const [chargeMode, setChargeMode] = useState<ChargeMode>("on_top");
   const [magnateShare, setMagnateShare] = useState("100");
+  /** Reglas de CVU o distribuidor: el reparto puede venir del % del distribuidor */
+  const [inheritShare, setInheritShare] = useState(true);
+  const [distributorId, setDistributorId] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [account, setAccount] = useState<{ id: string; label: string } | null>(null);
   const [accountSearch, setAccountSearch] = useState("");
@@ -82,6 +92,8 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
     setMax(rule?.maxAmount === null || rule?.maxAmount === undefined ? "" : String(rule.maxAmount));
     setChargeMode(rule?.chargeMode ?? "on_top");
     setMagnateShare(String(rule?.magnateSharePercent ?? 100));
+    setInheritShare(rule ? !isDefaultRule(rule) && rule.magnateSharePercent === null : true);
+    setDistributorId("");
     setIsActive(rule?.isActive ?? true);
     setAccount(null);
     setAccountSearch("");
@@ -96,6 +108,7 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
   const candidates = searching ? ((searchResult as PaginatedResult<User>)?.data ?? []).filter((u) => u.accountId) : [];
 
   const isOutgoing = OUTGOING_OPERATIONS.includes(operation);
+  const shareInherited = !isDefault && inheritShare;
   const effectiveMode: ChargeMode = isOutgoing ? chargeMode : "deduct";
 
   const nums = {
@@ -109,30 +122,32 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
     nums.rate >= 0 && nums.rate <= 100 &&
     nums.fixed >= 0 && nums.min >= 0 &&
     (nums.max === null || nums.max >= nums.min) &&
-    nums.share >= 0 && nums.share <= 100;
+    (shareInherited || (nums.share >= 0 && nums.share <= 100));
   const fee = valid ? exampleFee(nums.rate, nums.fixed, nums.min, nums.max, EXAMPLE_AMOUNT) : 0;
-  const distributorPart = valid ? Math.round(fee * (100 - nums.share)) / 100 : 0;
+  const distributorPart = valid && !shareInherited ? Math.round(fee * (100 - nums.share)) / 100 : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isNew && !account) return setError("Elige el CVU al que aplica la regla.");
+    if (isNew && !forDistributor && !account) return setError("Elige el CVU al que aplica la regla.");
+    if (isNew && forDistributor && !distributorId) return setError("Elige el distribuidor al que aplica la regla.");
     if (Number.isNaN(nums.rate) || nums.rate < 0 || nums.rate > 100) return setError("La tasa debe estar entre 0 y 100 %.");
     if (Number.isNaN(nums.fixed) || nums.fixed < 0) return setError("El monto fijo no puede ser negativo.");
     if (Number.isNaN(nums.min) || nums.min < 0) return setError("El mínimo no puede ser negativo.");
     if (nums.max !== null && (Number.isNaN(nums.max) || nums.max < nums.min)) return setError("El máximo no puede ser menor que el mínimo.");
-    if (Number.isNaN(nums.share) || nums.share < 0 || nums.share > 100) return setError("La parte de Magnate debe estar entre 0 y 100 %.");
+    if (!shareInherited && (Number.isNaN(nums.share) || nums.share < 0 || nums.share > 100)) return setError("La parte de Magnate debe estar entre 0 y 100 %.");
     setError("");
 
     const input: FeeRuleInput = {
-      accountId: rule ? rule.accountId : account!.id,
+      accountId: rule ? rule.accountId : forDistributor ? null : account!.id,
+      distributorId: rule ? rule.distributorId : forDistributor ? distributorId : null,
       operation,
       ratePercent: nums.rate,
       fixedAmount: nums.fixed,
       minAmount: nums.min,
       maxAmount: nums.max,
       chargeMode: effectiveMode,
-      magnateSharePercent: nums.share,
-      isActive: rule?.accountId === null ? true : isActive,
+      magnateSharePercent: shareInherited ? null : nums.share,
+      isActive: isDefault ? true : isActive,
     };
     try {
       if (rule) await update.mutateAsync({ id: rule.id, input });
@@ -148,8 +163,12 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
   const title = rule
     ? rule.accountId
       ? `Regla de ${rule.holderName ?? rule.accountAlias}`
-      : `Regla por defecto: ${FEE_OPERATION_LABELS[rule.operation]}`
-    : "Nueva regla para un CVU";
+      : rule.distributorId
+        ? `Regla de ${rule.distributorName ?? "distribuidor"}`
+        : `Regla por defecto: ${FEE_OPERATION_LABELS[rule.operation]}`
+    : forDistributor
+      ? "Nueva regla para un distribuidor"
+      : "Nueva regla para un CVU";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,14 +176,34 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {rule?.accountId === null
-              ? "Se aplica a todos los CVUs que no tienen una regla propia para esta operación."
-              : "Reemplaza la regla por defecto solo para este CVU."}
+            {isDefault
+              ? "Se aplica a todos los CVUs que no tienen una regla propia ni de su distribuidor para esta operación."
+              : forDistributor
+                ? "Vale para todos los CVUs del distribuidor que no tengan una regla propia."
+                : "Reemplaza la regla del distribuidor y la por defecto solo para este CVU."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {isNew && (
+          {isNew && forDistributor && (
+            <div className="space-y-2">
+              <Label>Distribuidor</Label>
+              <Select value={distributorId} onValueChange={setDistributorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elige el distribuidor" />
+                </SelectTrigger>
+                <SelectContent className="glass-card">
+                  {distributors.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {isNew && !forDistributor && (
             <div className="space-y-2">
               <Label htmlFor="rule-account">CVU</Label>
               {account ? (
@@ -281,14 +320,35 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="rule-share">Parte de Magnate (%)</Label>
-            <Input id="rule-share" inputMode="decimal" value={magnateShare} onChange={(e) => setMagnateShare(e.target.value)} />
-            <p className="text-xs text-muted-foreground">
-              El resto va al distribuidor del CVU. Si el CVU no tiene distribuidor, todo va a Magnate.
-            </p>
+            {!isDefault && (
+              <label htmlFor="rule-inherit" className="flex items-start gap-3 rounded-lg border border-border/50 p-3 cursor-pointer">
+                <Checkbox
+                  id="rule-inherit"
+                  checked={inheritShare}
+                  onCheckedChange={(v) => setInheritShare(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm">
+                  <span className="font-medium">Usar el reparto del distribuidor.</span>{" "}
+                  <span className="text-muted-foreground">
+                    Su % (Distribuidores → Comisiones y red) o, si no tiene, el de la regla por defecto.
+                  </span>
+                </span>
+              </label>
+            )}
+            {!shareInherited && (
+              <>
+                <Label htmlFor="rule-share">Parte de Magnate (%)</Label>
+                <Input id="rule-share" inputMode="decimal" value={magnateShare} onChange={(e) => setMagnateShare(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  El resto va al distribuidor del CVU
+                  {isDefault ? " (salvo que el distribuidor tenga su propio %)" : ""}. Si el CVU no tiene distribuidor, todo va a Magnate.
+                </p>
+              </>
+            )}
           </div>
 
-          {rule?.accountId !== null && (
+          {!isDefault && (
             <div className="flex items-center justify-between gap-4 rounded-lg border border-border/50 p-3">
               <Label htmlFor="rule-active" className="cursor-pointer">
                 Regla activa
@@ -317,7 +377,9 @@ export function FeeRuleDialog({ open, onOpenChange, rule }: FeeRuleDialogProps) 
                     {!isOutgoing && <span className="text-muted-foreground"> · el cliente recibe {formatARS(EXAMPLE_AMOUNT - fee)}</span>}
                   </p>
                   <p className="text-muted-foreground">
-                    Magnate {formatARS(fee - distributorPart)} · Distribuidor {formatARS(distributorPart)}
+                    {shareInherited
+                      ? "El reparto sale del % del distribuidor."
+                      : `Magnate ${formatARS(fee - distributorPart)} · Distribuidor ${formatARS(distributorPart)}`}
                   </p>
                 </>
               )}
