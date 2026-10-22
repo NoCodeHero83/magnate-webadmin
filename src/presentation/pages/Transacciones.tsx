@@ -24,7 +24,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/presentation/components/ui/pagination";
-import { Search, Download, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Search, Download, ArrowUpRight, Coins, ArrowDownLeft } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const Transacciones = () => {
@@ -65,7 +65,7 @@ const Transacciones = () => {
     const excelData = data.map((tx) => ({
       ID: tx.referenceNumber || tx.id.substring(0, 8),
       Usuario: tx.fromUserName || "Externo",
-      Tipo: tx.isIncoming ? "Ingreso" : "Egreso",
+      Tipo: tx.isCommission ? (tx.metadata?.split ? "Reparto comisión" : "Comisión") : tx.isIncoming ? "Ingreso" : "Egreso",
       Origen: tx.fromUserName || "Externo",
       Destino: tx.toUserName || "Externo",
       Monto: parseFloat(tx.amount),
@@ -139,10 +139,12 @@ const Transacciones = () => {
       key: "type",
       header: "Tipo",
       render: (item: Transaction) => {
-        const Icon = item.isIncoming ? ArrowDownLeft : ArrowUpRight;
-        const color = item.isIncoming ? "text-success" : "text-destructive";
-        const bg = item.isIncoming ? "bg-success/10" : "bg-destructive/10";
-        const label = item.isIncoming ? "Ingreso" : "Egreso";
+        const Icon = item.isCommission ? Coins : item.isIncoming ? ArrowDownLeft : ArrowUpRight;
+        const color = item.isCommission ? "text-warning" : item.isIncoming ? "text-success" : "text-destructive";
+        const bg = item.isCommission ? "bg-warning/10" : item.isIncoming ? "bg-success/10" : "bg-destructive/10";
+        const label = item.isCommission
+          ? item.metadata?.split ? "Reparto comisión" : "Comisión"
+          : item.isIncoming ? "Ingreso" : "Egreso";
 
         return (
           <div className="flex items-center gap-2">
@@ -232,7 +234,7 @@ const Transacciones = () => {
               <SelectTrigger className="w-40 bg-card border-border/50">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="completed">Completado</SelectItem>
                 <SelectItem value="processing">Procesando</SelectItem>

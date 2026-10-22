@@ -11,5 +11,8 @@ export interface QueryOptions {
     page?: number;
     pageSize?: number;
     status?: string;
+    accountType?: string;
+    /** id del distribuidor, "none" (sin asignar) o "all" */
+    distributorId?: string;
     filterDoubleEntry?: boolean;
 }

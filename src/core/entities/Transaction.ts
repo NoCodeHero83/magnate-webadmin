@@ -22,4 +22,6 @@ export interface Transaction {
     fromUserName?: string;
     toUserName?: string;
     isIncoming?: boolean;
+    /** Movimiento de comisión (cliente -> Magnate, o reparto Magnate -> distribuidor) */
+    isCommission?: boolean;
 }

@@ -1,8 +1,9 @@
-import { Search, ChevronDown, Menu, LogOut, User, Settings as SettingsIcon } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, LogOut, KeyRound, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/presentation/context/AuthContext";
-import { Input } from "@/presentation/components/ui/input";
 import { Button } from "@/presentation/components/ui/button";
+import { ChangePasswordDialog } from "@/presentation/components/admin/ChangePasswordDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ interface HeaderProps {
 export const Header = ({ title, subtitle }: HeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -42,7 +44,7 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center">
                   <span className="text-xs font-semibold text-primary-foreground">
                     {user?.email?.substring(0, 2).toUpperCase() || "AD"}
                   </span>
@@ -51,12 +53,18 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass-card">
+            <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/configuracion")}>
-                <SettingsIcon className="mr-2 h-4 w-4" />
-                Configuración
+              {user?.role === "admin" && (
+                <DropdownMenuItem onClick={() => navigate("/configuracion")}>
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  Configuración
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                Cambiar contraseña
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">
@@ -67,6 +75,7 @@ export const Header = ({ title, subtitle }: HeaderProps) => {
           </DropdownMenu>
         </div>
       </div>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </header>
   );
 };

@@ -4,6 +4,10 @@ import { Button } from "@/presentation/components/ui/button";
 import { Input } from "@/presentation/components/ui/input";
 import { Label } from "@/presentation/components/ui/label";
 import { SupabaseSupportRepository } from "@/infrastructure/supabase/SupabaseSupportRepository";
+import { ApprovalSettingsCard } from "@/presentation/components/admin/ApprovalSettingsCard";
+import { WithdrawalSettingsCard } from "@/presentation/components/admin/WithdrawalSettingsCard";
+import { CommissionSettingsCard } from "@/presentation/components/admin/CommissionSettingsCard";
+import { EnvironmentSettingsCard } from "@/presentation/components/admin/EnvironmentSettingsCard";
 import {
   Save,
   Building,
@@ -86,7 +90,12 @@ const Configuracion = () => {
         subtitle="Ajustes generales del sistema"
       />
 
-      <div className="p-4 md:p-6">
+      <div className="p-4 md:p-6 space-y-6">
+        <EnvironmentSettingsCard />
+        <ApprovalSettingsCard />
+        <CommissionSettingsCard />
+        <WithdrawalSettingsCard />
+
         <div className="premium-card p-4 md:p-6 space-y-6">
           <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
             <Building className="h-5 w-5 text-primary" />

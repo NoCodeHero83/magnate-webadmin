@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Header } from "@/presentation/components/admin/Header";
 import { DataTable } from "@/presentation/components/admin/DataTable";
@@ -7,7 +8,10 @@ import { Input } from "@/presentation/components/ui/input";
 import { Button } from "@/presentation/components/ui/button";
 import { useUsers, useUserStats, useAccountLimits, useUpdateAccountLimits } from "@/presentation/hooks/useUsers";
 import { useQueryClient } from "@tanstack/react-query";
-import { User } from "@/core/entities/User";
+import { User, getUserDisplayName } from "@/core/entities/User";
+import { AccountTypeBadge, ACCOUNT_TYPE_LABELS } from "@/presentation/components/admin/AccountTypeBadge";
+import { UserDetailsDialog } from "@/presentation/components/admin/UserDetailsDialog";
+import { ReviewUserDialog } from "@/presentation/components/admin/ReviewUserDialog";
 import { PaginatedResult } from "@/core/types/pagination";
 import {
   Select,
@@ -39,16 +43,58 @@ import {
   PaginationEllipsis,
 } from "@/presentation/components/ui/pagination";
 import { Label } from "@/presentation/components/ui/label";
-import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download } from "lucide-react";
+import { Checkbox } from "@/presentation/components/ui/checkbox";
+import { Search, Filter, MoreHorizontal, Eye, SlidersHorizontal, Download, Users as UsersIcon, CheckCircle2, XCircle, Handshake } from "lucide-react";
 import { toast } from "sonner";
+import { csvCell } from "@/lib/format";
+import { useDistributors, useAssignAccounts } from "@/presentation/hooks/useDistributors";
+
+const STATUS_FILTERS = ["all", "verified", "pending", "rejected", "suspended"];
+const ACCOUNT_TYPE_FILTERS = ["all", "personal", "business"];
+
+const STATUS_LABELS: Record<string, string> = {
+  verified: "Activo",
+  pending: "Pendiente",
+  rejected: "Rechazado",
+  suspended: "Suspendido",
+};
 
 const Usuarios = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
   const pageSize = 10;
+  // Filtros en la URL (?estado=...&tipo=...): se pueden compartir, sobreviven a la recarga
+  // y el link "Usuarios" del menú los limpia
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get("estado") || "all";
+  const typeParam = searchParams.get("tipo") || "all";
+  const statusFilter = STATUS_FILTERS.includes(statusParam) ? statusParam : "all";
+  const accountTypeFilter = ACCOUNT_TYPE_FILTERS.includes(typeParam) ? typeParam : "all";
+  // id de distribuidor, "none" (sin asignar) o "all"
+  const distributorFilter = searchParams.get("distribuidor") || "all";
+
+  const setFilter = (param: "estado" | "tipo" | "distribuidor", value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") next.delete(param);
+      else next.set(param, value);
+      return next;
+    }, { replace: true });
+    setPage(0);
+  };
+  const setStatusFilter = (value: string) => setFilter("estado", value);
+  const setAccountTypeFilter = (value: string) => setFilter("tipo", value);
+  const setDistributorFilter = (value: string) => setFilter("distribuidor", value);
+
+  const { data: distributors = [] } = useDistributors();
+  const assignAccounts = useAssignAccounts();
+  // CVUs seleccionados para asignar en lote (account_id -> nombre)
+  const [selectedAccounts, setSelectedAccounts] = useState<Map<string, string>>(new Map());
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<string>("");
+  const [assignAccountIds, setAssignAccountIds] = useState<string[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -61,9 +107,15 @@ const Usuarios = () => {
   const { data: result, isLoading, isFetching } = useUsers({
     search: debouncedSearch,
     status: statusFilter,
+    accountType: accountTypeFilter,
+    distributorId: distributorFilter,
     page,
     pageSize,
   });
+
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, accountTypeFilter, distributorFilter]);
 
   const { data: stats } = useUserStats();
 
@@ -72,6 +124,8 @@ const Usuarios = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [limitsDialogOpen, setLimitsDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewDecision, setReviewDecision] = useState<"approve" | "reject">("approve");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Limit form state
@@ -93,6 +147,47 @@ const Usuarios = () => {
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
     setViewDialogOpen(true);
+  };
+
+  const handleOpenReview = (user: User, decision: "approve" | "reject") => {
+    setSelectedUser(user);
+    setReviewDecision(decision);
+    setViewDialogOpen(false);
+    setReviewDialogOpen(true);
+  };
+
+  // ── Asignación a distribuidores ────────────────────────────────────────────
+
+  const toggleSelected = (user: User, checked: boolean) => {
+    if (!user.accountId) return;
+    setSelectedAccounts((prev) => {
+      const next = new Map(prev);
+      if (checked) next.set(user.accountId!, getUserDisplayName(user));
+      else next.delete(user.accountId!);
+      return next;
+    });
+  };
+
+  const openAssign = (accountIds: string[], currentDistributorId?: string) => {
+    setAssignAccountIds(accountIds);
+    setAssignTarget(currentDistributorId ?? "");
+    setAssignDialogOpen(true);
+  };
+
+  const handleAssign = async () => {
+    const distributorId = assignTarget === "none" ? null : assignTarget;
+    try {
+      const changed = await assignAccounts.mutateAsync({ accountIds: assignAccountIds, distributorId });
+      toast.success(
+        distributorId
+          ? `${changed} ${changed === 1 ? "CVU asignado" : "CVUs asignados"}`
+          : `${changed} ${changed === 1 ? "CVU liberado" : "CVUs liberados"}`
+      );
+      setAssignDialogOpen(false);
+      setSelectedAccounts(new Map());
+    } catch (err: any) {
+      toast.error(err?.message || "No se pudo asignar");
+    }
   };
 
   const handleOpenLimits = (user: User) => {
@@ -157,33 +252,57 @@ const Usuarios = () => {
       const allData = await userRepo.getAll({
         search: debouncedSearch,
         status: statusFilter,
+        accountType: accountTypeFilter,
+        distributorId: distributorFilter,
       });
       const allUsers = Array.isArray(allData) ? allData : (allData as any).data || [];
 
       const headers = [
         "ID",
+        "Tipo de cuenta",
         "Nombre",
         "Apellido",
         "Email",
         "Teléfono",
         "DNI",
+        "CUIT/CUIL",
+        "Razón social",
+        "Nombre de fantasía",
+        "CUIT empresa",
+        "Tipo societario",
+        "Fecha de inscripción",
         "Estado",
+        "Motivo",
+        "Alias",
+        "CVU",
+        "Distribuidor",
         "Fecha Registro",
       ];
       const rows = allUsers.map((u: User) => [
         u.id,
+        ACCOUNT_TYPE_LABELS[u.accountType],
         u.firstName,
         u.lastName,
         u.email,
         u.phone,
         u.dni,
-        u.verificationStatus,
+        u.cuitCuil,
+        u.businessProfile?.legalName,
+        u.businessProfile?.tradeName,
+        u.businessProfile?.cuit,
+        u.businessProfile?.entityTypeName,
+        u.businessProfile?.incorporationDate,
+        STATUS_LABELS[u.verificationStatus] ?? u.verificationStatus,
+        u.statusReason,
+        u.accountAlias,
+        u.accountCvu,
+        u.distributorName,
         new Date(u.createdAt).toLocaleDateString("es-AR"),
       ]);
 
       const csvContent = [headers, ...rows]
         .map((row) =>
-          row.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")
+          row.map(csvCell).join(",")
         )
         .join("\n");
 
@@ -193,7 +312,7 @@ const Usuarios = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `usuarios_${statusFilter}_${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = `usuarios_${accountTypeFilter}_${statusFilter}_${new Date().toISOString().split("T")[0]}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       toast.success("CSV exportado correctamente");
@@ -204,37 +323,73 @@ const Usuarios = () => {
 
   // ── Columns ───────────────────────────────────────────────────────────────
 
+  const pageUsers = ((result as PaginatedResult<User>)?.data || []).filter((u) => u.accountId);
+  const allPageSelected = pageUsers.length > 0 && pageUsers.every((u) => selectedAccounts.has(u.accountId!));
+
   const columns = [
-    { key: "id", header: "ID", className: "font-mono text-xs" },
+    {
+      key: "select",
+      header: (
+        <Checkbox
+          aria-label="Seleccionar todos los de esta página"
+          checked={allPageSelected}
+          onCheckedChange={(checked) => pageUsers.forEach((u) => toggleSelected(u, checked === true))}
+        />
+      ),
+      className: "w-10",
+      render: (item: User) =>
+        item.accountId ? (
+          <Checkbox
+            aria-label={`Seleccionar ${getUserDisplayName(item)}`}
+            checked={selectedAccounts.has(item.accountId)}
+            onCheckedChange={(checked) => toggleSelected(item, checked === true)}
+          />
+        ) : null,
+    },
+    { key: "id", header: "ID", className: "font-mono text-xs hidden 2xl:table-cell" },
     {
       key: "name",
       header: "Usuario",
       render: (item: User) => (
         <div className="min-w-0">
-          <p className="font-medium text-foreground truncate">{`${item.firstName} ${item.lastName}`}</p>
-          <p className="text-xs text-muted-foreground truncate">{item.email}</p>
+          <p className="font-medium text-foreground truncate">{getUserDisplayName(item)}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {item.accountType === "business" ? `Rep.: ${item.firstName} ${item.lastName} · ` : ""}
+            {item.email}
+          </p>
         </div>
       ),
     },
     { key: "phone", header: "Teléfono", className: "hidden md:table-cell" },
-    { key: "dni", header: "DNI", className: "hidden lg:table-cell" },
     {
-      key: "verified",
-      header: "Verificado",
+      key: "dni",
+      header: "DNI / CUIT",
+      className: "hidden lg:table-cell font-mono text-xs",
+      render: (item: User) => item.businessProfile?.cuit || item.dni,
+    },
+    {
+      key: "accountType",
+      header: "Tipo",
       className: "hidden sm:table-cell",
-      render: (_item: User) => (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
-          <span className="h-2 w-2 rounded-full bg-success" />
-          Sí
-        </span>
-      ),
+      render: (item: User) => <AccountTypeBadge type={item.accountType} />,
     },
     {
       key: "status",
       header: "Estado",
       render: (item: User) => (
-        <StatusBadge status={item.verificationStatus as any} />
+        <StatusBadge status={item.verificationStatus} />
       ),
+    },
+    {
+      key: "distributor",
+      header: "Distribuidor",
+      className: "hidden xl:table-cell",
+      render: (item: User) =>
+        item.distributorName ? (
+          <span className="text-sm">{item.distributorName}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        ),
     },
     {
       key: "createdAt",
@@ -253,7 +408,7 @@ const Usuarios = () => {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-card">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem
               className="gap-2"
               onClick={() => handleViewDetails(item)}
@@ -266,6 +421,31 @@ const Usuarios = () => {
             >
               <SlidersHorizontal className="h-4 w-4" /> Límite operacional
             </DropdownMenuItem>
+            {item.accountId && (
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => openAssign([item.accountId!], item.distributorId)}
+              >
+                <Handshake className="h-4 w-4" /> Asignar distribuidor
+              </DropdownMenuItem>
+            )}
+            {(item.verificationStatus === "pending" || item.verificationStatus === "rejected") && (
+              <DropdownMenuItem
+                className="gap-2 text-success"
+                onClick={() => handleOpenReview(item, "approve")}
+              >
+                <CheckCircle2 className="h-4 w-4" /> Aprobar cuenta
+              </DropdownMenuItem>
+            )}
+            {item.verificationStatus === "pending" && (
+              <DropdownMenuItem
+                className="gap-2 text-destructive"
+                onClick={() => handleOpenReview(item, "reject")}
+              >
+                <XCircle className="h-4 w-4" /> Rechazar cuenta
+              </DropdownMenuItem>
+            )}
+            {(item.verificationStatus === "verified" || item.verificationStatus === "suspended") && (
             <DropdownMenuItem
               className={`gap-2 ${item.verificationStatus === "suspended"
                   ? "text-success"
@@ -286,6 +466,7 @@ const Usuarios = () => {
                 </>
               )}
             </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -318,7 +499,7 @@ const Usuarios = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nombre, email, dni, id, teléfono..."
+                placeholder="Buscar por nombre, razón social, email, DNI, CUIT..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-card border-border/50"
@@ -331,14 +512,54 @@ const Usuarios = () => {
                 setPage(0);
               }}
             >
-              <SelectTrigger className="w-full sm:w-40 bg-card border-border/50">
+              <SelectTrigger className="w-full sm:w-44 bg-card border-border/50">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Activos</SelectItem>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="verified">Activos</SelectItem>
+                <SelectItem value="pending">Pendientes</SelectItem>
+                <SelectItem value="rejected">Rechazados</SelectItem>
                 <SelectItem value="suspended">Suspendidos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={accountTypeFilter}
+              onValueChange={(val) => {
+                setAccountTypeFilter(val);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-48 bg-card border-border/50">
+                <UsersIcon className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Tipo de cuenta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="personal">Persona Física</SelectItem>
+                <SelectItem value="business">Persona Jurídica</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={distributorFilter}
+              onValueChange={(val) => {
+                setDistributorFilter(val);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-52 bg-card border-border/50">
+                <Handshake className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Distribuidor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los distribuidores</SelectItem>
+                <SelectItem value="none">Sin distribuidor</SelectItem>
+                {distributors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -353,7 +574,7 @@ const Usuarios = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <div className="premium-card p-4 text-center">
             <p className="text-xl md:text-2xl font-bold text-foreground">
               {stats?.total || 0}
@@ -370,8 +591,23 @@ const Usuarios = () => {
               Usuarios activos
             </p>
           </div>
-          <div className="premium-card p-4 text-center">
+          <button
+            type="button"
+            className="premium-card p-4 text-center hover:border-warning/40 transition-colors"
+            onClick={() => {
+              setStatusFilter("pending");
+              setPage(0);
+            }}
+          >
             <p className="text-xl md:text-2xl font-bold text-warning">
+              {stats?.pending || 0}
+            </p>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Pendientes de aprobación
+            </p>
+          </button>
+          <div className="premium-card p-4 text-center">
+            <p className="text-xl md:text-2xl font-bold text-destructive">
               {stats?.suspended || 0}
             </p>
             <p className="text-xs md:text-sm text-muted-foreground">
@@ -379,6 +615,25 @@ const Usuarios = () => {
             </p>
           </div>
         </div>
+
+        {/* Selección para asignar en lote */}
+        {selectedAccounts.size > 0 && (
+          <div className="premium-card p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-sm">
+              <span className="font-semibold">{selectedAccounts.size}</span>{" "}
+              {selectedAccounts.size === 1 ? "CVU seleccionado" : "CVUs seleccionados"}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setSelectedAccounts(new Map())}>
+                Quitar selección
+              </Button>
+              <Button size="sm" className="gap-2" onClick={() => openAssign([...selectedAccounts.keys()])}>
+                <Handshake className="h-4 w-4" />
+                Asignar distribuidor
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="space-y-4">
@@ -499,74 +754,66 @@ const Usuarios = () => {
       </div>
 
       {/* ── View Details Dialog ─────────────────────────────────────────── */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="glass-card sm:max-w-md">
+      <UserDetailsDialog
+        user={selectedUser}
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        onReview={handleOpenReview}
+      />
+
+      {/* ── Review (approve / reject) Dialog ───────────────────────────── */}
+      <ReviewUserDialog
+        user={selectedUser}
+        decision={reviewDecision}
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+      />
+
+      {/* ── Asignar distribuidor ─────────────────────────────────────────── */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Detalles del Usuario</DialogTitle>
-            <DialogDescription>Información completa del usuario</DialogDescription>
+            <DialogTitle>Asignar distribuidor</DialogTitle>
+            <DialogDescription>
+              {assignAccountIds.length === 1
+                ? "Las comisiones de las operaciones nuevas de este CVU se repartirán con el distribuidor elegido."
+                : `Las comisiones de las operaciones nuevas de estos ${assignAccountIds.length} CVUs se repartirán con el distribuidor elegido.`}
+            </DialogDescription>
           </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground text-xs">ID</Label>
-                  <p className="font-mono text-sm">
-                    {selectedUser.id.substring(0, 8)}...
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">
-                    Estado
-                  </Label>
-                  <StatusBadge status={selectedUser.verificationStatus as any} />
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">Nombre</Label>
-                <p className="font-medium">{`${selectedUser.firstName} ${selectedUser.lastName}`}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">Email</Label>
-                <p>{selectedUser.email}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">
-                  Teléfono
-                </Label>
-                <p>{selectedUser.phone}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">DNI</Label>
-                <p>{selectedUser.dni}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Rol</Label>
-                  <p className="font-semibold text-lg capitalize">
-                    {selectedUser.role}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">
-                    Verificado
-                  </Label>
-                  <p className="text-success">Sí</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground text-xs">
-                  Fecha de Registro
-                </Label>
-                <p>{new Date(selectedUser.createdAt).toLocaleString("es-AR")}</p>
-              </div>
+          <div className="space-y-4">
+            <Select value={assignTarget} onValueChange={setAssignTarget}>
+              <SelectTrigger>
+                <SelectValue placeholder="Elige un distribuidor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin distribuidor (todo para Magnate)</SelectItem>
+                {distributors
+                  .filter((d) => d.status === "active")
+                  .map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {distributors.length === 0 && (
+              <p className="text-sm text-muted-foreground">Primero crea un distribuidor desde Distribuidores.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assignAccounts.isPending}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAssign} disabled={!assignTarget || assignAccounts.isPending}>
+                {assignAccounts.isPending ? "Guardando..." : "Asignar"}
+              </Button>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* ── Suspend Dialog ─────────────────────────────────────────────── */}
       <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
-        <DialogContent className="glass-card">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedUser?.verificationStatus === "suspended"
@@ -578,8 +825,8 @@ const Usuarios = () => {
             <div className="space-y-4">
               <p>
                 {selectedUser.verificationStatus === "suspended"
-                  ? `¿Estás seguro de que deseas quitar la suspensión al usuario ${selectedUser.firstName} ${selectedUser.lastName}?`
-                  : `¿Estás seguro de que deseas suspender al usuario ${selectedUser.firstName} ${selectedUser.lastName}?`}
+                  ? `¿Estás seguro de que deseas quitar la suspensión a ${getUserDisplayName(selectedUser)}?`
+                  : `¿Estás seguro de que deseas suspender a ${getUserDisplayName(selectedUser)}?`}
               </p>
               <p className="text-sm text-muted-foreground">
                 {selectedUser.verificationStatus === "suspended"
@@ -617,12 +864,12 @@ const Usuarios = () => {
 
       {/* ── Límite Operacional Dialog ───────────────────────────────────── */}
       <Dialog open={limitsDialogOpen} onOpenChange={setLimitsDialogOpen}>
-        <DialogContent className="glass-card sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Límite Operacional</DialogTitle>
             <DialogDescription>
               {selectedUser
-                ? `Configura los límites de ${selectedUser.firstName} ${selectedUser.lastName}`
+                ? `Configura los límites de ${getUserDisplayName(selectedUser)}`
                 : ""}
             </DialogDescription>
           </DialogHeader>

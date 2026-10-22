@@ -5,6 +5,11 @@ import {
   Users,
   ArrowRightLeft,
   Settings,
+  Handshake,
+  Coins,
+  CreditCard,
+  Wallet,
+  List,
   LogOut,
   Crown,
   Menu,
@@ -14,18 +19,43 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/presentation/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/presentation/components/ui/sheet";
 import { useAuth } from "@/presentation/context/AuthContext";
+import { useUserStats } from "@/presentation/hooks/useUsers";
+import { usePendingWithdrawalsCount } from "@/presentation/hooks/useWithdrawals";
 
-const menuItems = [
+const adminMenu = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Usuarios", path: "/usuarios" },
   { icon: ArrowRightLeft, label: "Transacciones", path: "/transacciones" },
+  { icon: Handshake, label: "Distribuidores", path: "/distribuidores" },
+  { icon: Coins, label: "Comisiones", path: "/comisiones" },
+  { icon: Wallet, label: "Retiros", path: "/retiros" },
   { icon: Settings, label: "Configuración", path: "/configuracion" },
 ];
+
+const distributorMenu = [
+  { icon: LayoutDashboard, label: "Mi panel", path: "/" },
+  { icon: CreditCard, label: "Mis CVUs", path: "/mis-cvus" },
+  { icon: List, label: "Movimientos", path: "/mis-movimientos" },
+  { icon: Coins, label: "Mis comisiones", path: "/mis-comisiones" },
+  { icon: Wallet, label: "Retiros", path: "/mis-retiros" },
+];
+
+const BADGE_TITLES: Record<string, string> = {
+  "/usuarios": "Cuentas pendientes de aprobación",
+  "/retiros": "Retiros pendientes",
+};
+
+const ROLE_LABELS: Record<string, string> = { admin: "Administrador", distributor: "Distribuidor" };
 
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const menuItems = isAdmin ? adminMenu : distributorMenu;
+  const { data: userStats } = useUserStats(isAdmin);
+  const pendingWithdrawals = usePendingWithdrawalsCount(isAdmin);
+  const badges: Record<string, number> = { "/usuarios": userStats?.pending || 0, "/retiros": pendingWithdrawals };
 
   const handleLogout = async () => {
     await logout();
@@ -36,14 +66,14 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-20 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-accent">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-sidebar-primary to-accent">
           <Crown className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
         <div>
           <h1 className="font-display text-lg font-bold text-sidebar-foreground">
             Magnate
           </h1>
-          <p className="text-xs text-sidebar-foreground/60">Admin Panel</p>
+          <p className="text-xs text-sidebar-foreground/60">{isAdmin ? "Admin Panel" : "Panel Distribuidor"}</p>
         </div>
       </div>
 
@@ -68,6 +98,14 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
                 isActive ? "text-sidebar-primary" : ""
               )} />
               {item.label}
+              {badges[item.path] > 0 && (
+                <span
+                  className="ml-auto rounded-full bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground"
+                  title={BADGE_TITLES[item.path]}
+                >
+                  {badges[item.path]}
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -76,13 +114,13 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
       {/* User Section */}
       <div className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3 rounded-xl bg-sidebar-accent/50 px-4 py-3">
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+          <div className="h-9 w-9 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center shrink-0">
             <span className="text-sm font-semibold text-primary-foreground">
               {user?.email?.substring(0, 2).toUpperCase() || "AD"}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate capitalize">{user?.role || "Admin"}</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{ROLE_LABELS[user?.role ?? ""] ?? "Admin"}</p>
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || "admin@magnate.com"}</p>
           </div>
           <button
@@ -109,7 +147,7 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar/80 backdrop-blur-sm border border-sidebar-border"
+            className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar/80 backdrop-blur-xs border border-sidebar-border"
           >
             <Menu className="h-5 w-5 text-sidebar-foreground" />
           </Button>

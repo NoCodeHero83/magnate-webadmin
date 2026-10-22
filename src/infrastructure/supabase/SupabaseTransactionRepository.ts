@@ -28,7 +28,9 @@ interface DbTransaction {
 
 export class SupabaseTransactionRepository implements ITransactionRepository {
     private mapToEntity(dbTx: DbTransaction, fromUserName?: string, toUserName?: string): Transaction {
-        const isIncoming = dbTx.metadata?.is_incoming === true;
+        // Sin cuenta de origen y con destino en la billetera (depósitos, cargas) también es un ingreso
+        const isIncoming =
+            dbTx.metadata?.is_incoming === true || (!dbTx.from_account_id && !!dbTx.to_account_id);
 
         return {
             id: dbTx.id,
@@ -50,6 +52,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
             fromUserName,
             toUserName: toUserName || dbTx.payment_reference || dbTx.external_holder_name || dbTx.external_alias || undefined,
             isIncoming,
+            isCommission: dbTx.payment_method === "commission",
         };
     }
 
@@ -76,7 +79,9 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
                 `to_user_last_name.ilike.${searchPattern}`,
                 `to_user_email.ilike.${searchPattern}`,
                 `to_user_phone.ilike.${searchPattern}`,
-                `to_user_dni.ilike.${searchPattern}`
+                `to_user_dni.ilike.${searchPattern}`,
+                `from_holder_name.ilike.${searchPattern}`,
+                `to_holder_name.ilike.${searchPattern}`
             ];
 
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(options.search);
@@ -106,10 +111,8 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
             if (error) throw new Error(`Error fetching transactions: ${error.message}`);
 
             const mappedData = (data || []).map((tx: any) => {
-                const fromUserName = tx.from_user_first_name ? `${tx.from_user_first_name} ${tx.from_user_last_name}` : undefined;
-                const toUserName = tx.to_user_first_name ? `${tx.to_user_first_name} ${tx.to_user_last_name}` : undefined;
-
-                return this.mapToEntity(tx, fromUserName, toUserName);
+                // Titular (razón social para empresas) resuelto en la vista
+                return this.mapToEntity(tx, tx.from_holder_name || undefined, tx.to_holder_name || undefined);
             });
 
             return {
@@ -125,10 +128,7 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
         if (error) throw new Error(`Error fetching transactions: ${error.message}`);
 
         return (data || []).map((tx: any) => {
-            const fromUserName = tx.from_user_first_name ? `${tx.from_user_first_name} ${tx.from_user_last_name}` : undefined;
-            const toUserName = tx.to_user_first_name ? `${tx.to_user_first_name} ${tx.to_user_last_name}` : undefined;
-
-            return this.mapToEntity(tx, fromUserName, toUserName);
+            return this.mapToEntity(tx, tx.from_holder_name || undefined, tx.to_holder_name || undefined);
         });
     }
 
@@ -137,19 +137,22 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
         activeUsers: number;
         totalVolume: string;
         pendingTransactions: number;
+        custodyBalance: number;
+        todayVolume: number;
+        todayCount: number;
     }> {
         const { count: totalUsers, error: usersError } = await supabase
             .from("users")
-            .select("*", { count: "exact", head: true })
+            .select("id", { count: "exact", head: true })
             .eq("role", "user");
 
         if (usersError) throw new Error(`Error counting users: ${usersError.message}`);
 
         const { count: activeUsers, error: activeError } = await supabase
             .from("users")
-            .select("*", { count: "exact", head: true })
+            .select("id", { count: "exact", head: true })
             .eq("role", "user")
-            .neq("verification_status", "suspended");
+            .eq("verification_status", "verified");
 
         if (activeError) throw new Error(`Error counting active users: ${activeError.message}`);
 
@@ -172,11 +175,17 @@ export class SupabaseTransactionRepository implements ITransactionRepository {
 
         if (pendingError) throw new Error(`Error counting pending transactions: ${pendingError.message}`);
 
+        const { data: today, error: todayError } = await supabase.rpc("admin_dashboard_stats");
+        if (todayError) throw new Error(`Error fetching dashboard stats: ${todayError.message}`);
+
         return {
             totalUsers: totalUsers || 0,
             activeUsers: activeUsers || 0,
             totalVolume,
             pendingTransactions: pendingTransactions || 0,
+            custodyBalance: Number(today?.custody_balance ?? 0),
+            todayVolume: Number(today?.today_volume ?? 0),
+            todayCount: Number(today?.today_count ?? 0),
         };
     }
 }

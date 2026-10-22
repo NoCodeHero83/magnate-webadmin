@@ -1,9 +1,12 @@
-import { supabase } from "./client";
+import { createClient } from "@supabase/supabase-js";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./client";
+
+export type StaffRole = "user" | "admin" | "distributor";
 
 export interface AuthUser {
     id: string;
     email: string;
-    role: "user" | "admin";
+    role: StaffRole;
 }
 
 export class SupabaseAuthService {
@@ -13,22 +16,14 @@ export class SupabaseAuthService {
             password,
         });
 
-        if (authError) throw new Error(`Login failed: ${authError.message}`);
+        if (authError) throw new Error("Email o contraseña incorrectos");
         if (!authData.user) throw new Error("No user data returned");
 
-        // Obtener el rol del usuario desde public.users
-        const { data: userData, error: userError } = await supabase
-            .from("users")
-            .select("role")
-            .eq("id", authData.user.id)
-            .single();
-
-        if (userError) throw new Error(`Error fetching user role: ${userError.message}`);
-
+        const role = await this.getUserRole(authData.user.id);
         return {
             id: authData.user.id,
             email: authData.user.email!,
-            role: userData.role as "user" | "admin",
+            role,
         };
     }
 
@@ -42,22 +37,38 @@ export class SupabaseAuthService {
 
         if (!user) return null;
 
-        const { data: userData, error } = await supabase
-            .from("users")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-
-        if (error) return null;
-
-        return {
-            id: user.id,
-            email: user.email!,
-            role: userData.role as "user" | "admin",
-        };
+        try {
+            return {
+                id: user.id,
+                email: user.email!,
+                role: await this.getUserRole(user.id),
+                };
+        } catch {
+            return null;
+        }
     }
 
-    async getUserRole(userId: string): Promise<"user" | "admin"> {
+    /**
+     * Cambia la contraseña del usuario que inició sesión. Antes verifica la actual con un
+     * cliente aparte, sin tocar la sesión del panel.
+     */
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) throw new Error("Sesión no válida");
+
+        const verifier = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: false, autoRefreshToken: false, storageKey: "magnate-password-check" },
+        });
+        const { error: checkError } = await verifier.auth.signInWithPassword({ email: user.email, password: currentPassword });
+        if (checkError) throw new Error("CURRENT_PASSWORD_INVALID");
+        // Cierra solo la sesión de verificación
+        await verifier.auth.signOut({ scope: "local" });
+
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw new Error(error.message);
+    }
+
+    async getUserRole(userId: string): Promise<StaffRole> {
         const { data, error } = await supabase
             .from("users")
             .select("role")
@@ -65,6 +76,6 @@ export class SupabaseAuthService {
             .single();
 
         if (error) throw new Error(`Error fetching user role: ${error.message}`);
-        return data.role as "user" | "admin";
+        return data.role as StaffRole;
     }
 }

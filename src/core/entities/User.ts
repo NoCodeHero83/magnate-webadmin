@@ -1,3 +1,15 @@
+export type VerificationStatus = "pending" | "verified" | "rejected" | "suspended";
+export type AccountType = "personal" | "business";
+
+export interface BusinessProfile {
+  cuit: string;
+  legalName: string;
+  tradeName?: string;
+  entityType: string;
+  entityTypeName?: string;
+  incorporationDate: string;
+}
+
 export interface User {
   id: string;
   firstName: string;
@@ -5,9 +17,40 @@ export interface User {
   email: string;
   phone: string;
   dni: string;
-  role: "user" | "admin";
-  verificationStatus: "pending" | "verified" | "rejected" | "suspended";
+  cuitCuil?: string;
+  role: "user" | "admin" | "distributor";
+  verificationStatus: VerificationStatus;
+  accountType: AccountType;
+  businessProfile?: BusinessProfile;
+  statusReason?: string;
+  reviewedAt?: string;
+  /** Contrato firmado (ZapSign): ruta en el bucket privado "documents" o URL externa */
+  contractRef?: string;
   photoUrl?: string;
+  /** Cuenta (CVU) del cliente */
+  accountId?: string;
+  accountCvu?: string;
+  accountAlias?: string;
+  /** Distribuidor al que está asignado el CVU */
+  distributorId?: string;
+  distributorName?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AccountReview {
+  id: string;
+  decision: "approved" | "rejected";
+  previousStatus?: string;
+  reason?: string;
+  reviewerName?: string;
+  createdAt: string;
+}
+
+/** Nombre a mostrar: razón social / fantasía para empresas, nombre y apellido para personas */
+export function getUserDisplayName(user: Pick<User, "accountType" | "businessProfile" | "firstName" | "lastName">): string {
+  if (user.accountType === "business" && user.businessProfile) {
+    return user.businessProfile.tradeName || user.businessProfile.legalName;
+  }
+  return `${user.firstName} ${user.lastName}`.trim();
 }

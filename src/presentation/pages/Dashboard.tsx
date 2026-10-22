@@ -1,20 +1,28 @@
+import { Link } from "react-router-dom";
 import { Header } from "@/presentation/components/admin/Header";
 import { StatsCard } from "@/presentation/components/admin/StatsCard";
 import { DataTable } from "@/presentation/components/admin/DataTable";
 import { StatusBadge } from "@/presentation/components/admin/StatusBadge";
 import { useDashboardStats, useTransactions } from "@/presentation/hooks/useTransactions";
 import { useUserStats } from "@/presentation/hooks/useUsers";
+import { useCommissionSummary } from "@/presentation/hooks/useDistributors";
+import { formatARS, getPeriod } from "@/lib/format";
 import {
   Users,
   ArrowRightLeft,
   DollarSign,
   TrendingUp,
   UserX,
+  UserCheck,
+  Coins,
+  Landmark,
+  Handshake,
 } from "lucide-react";
 
 const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: userStats, isLoading: userStatsLoading } = useUserStats();
+  const { data: commissions } = useCommissionSummary(getPeriod("this_month"));
   const { data: result, isLoading: transactionsLoading } = useTransactions({
     page: 0,
     pageSize: 5,
@@ -25,10 +33,11 @@ const Dashboard = () => {
 
   const recentTransactions = transactions.map((tx) => ({
     id: tx.referenceNumber || tx.id.substring(0, 8),
-    user: tx.isIncoming
-      ? tx.fromUserName || "Externo"
-      : tx.toUserName || "Externo",
-    type: tx.isIncoming ? "Ingreso" : "Egreso",
+    // En una comisión interesa quién la pagó, no la cuenta de comisiones que la recibe
+    user: (tx.isCommission || tx.isIncoming ? tx.fromUserName : tx.toUserName) || "Externo",
+    type: tx.isCommission
+      ? tx.metadata?.split ? "Reparto comisión" : "Comisión"
+      : tx.isIncoming ? "Ingreso" : "Egreso",
     amount: `$${parseFloat(tx.amount).toFixed(2)}`,
     status: tx.status,
     date: new Date(tx.createdAt).toLocaleString("es-AR", {
@@ -77,15 +86,15 @@ const Dashboard = () => {
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <StatsCard
             title="Saldo Cuenta Recaudadora"
-            value="$0"
-            change="Transacciones completadas"
-            changeType="positive"
+            value={formatARS(stats?.custodyBalance)}
+            change="Saldo total en cuentas de clientes"
+            changeType="neutral"
             icon={DollarSign}
             iconColor="from-info to-info"
           />
           <StatsCard
             title="Volumen Total HOY"
-            value="$0"
+            value={formatARS(stats?.todayVolume)}
             change="Transacciones completadas"
             changeType="positive"
             icon={DollarSign}
@@ -93,21 +102,25 @@ const Dashboard = () => {
           />
           <StatsCard
             title="Cantidad Transacciones HOY"
-            value={stats?.pendingTransactions.toString() || "0"}
-            change="Requieren atención"
-            changeType="negative"
+            value={(stats?.todayCount ?? 0).toString()}
+            change={
+              stats?.pendingTransactions
+                ? `${stats.pendingTransactions} pendientes`
+                : "Sin pendientes"
+            }
+            changeType={stats?.pendingTransactions ? "negative" : "neutral"}
             icon={ArrowRightLeft}
             iconColor="from-info to-info"
           />
         </div>
 
         {/* Fila 2 — Cards de usuarios */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Usuarios Totales"
             value={(userStats?.total || 0).toString()}
-            change={`${userStats?.active || 0} activos`}
-            changeType="positive"
+            change={`${userStats?.business || 0} empresas`}
+            changeType="neutral"
             icon={Users}
             iconColor="from-primary to-primary-light"
           />
@@ -119,6 +132,16 @@ const Dashboard = () => {
             icon={TrendingUp}
             iconColor="from-success/80 to-success"
           />
+          <Link to="/usuarios?estado=pending" className="block rounded-xl hover:opacity-90 transition-opacity">
+            <StatsCard
+              title="Pendientes de aprobación"
+              value={(userStats?.pending || 0).toString()}
+              change={userStats?.pending ? "Requieren revisión" : "Sin pendientes"}
+              changeType={userStats?.pending ? "negative" : "neutral"}
+              icon={UserCheck}
+              iconColor="from-warning/80 to-warning"
+            />
+          </Link>
           <StatsCard
             title="Usuarios Suspendidos"
             value={(userStats?.suspended || 0).toString()}
@@ -128,6 +151,34 @@ const Dashboard = () => {
             iconColor="from-warning/80 to-warning"
           />
         </div>
+
+        {/* Fila 3 — Comisiones del mes */}
+        <Link to="/comisiones" className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3 rounded-xl hover:opacity-90 transition-opacity">
+          <StatsCard
+            title="Comisiones del mes"
+            value={formatARS(commissions?.feeTotal)}
+            change={`${commissions?.count ?? 0} operaciones`}
+            changeType="neutral"
+            icon={Coins}
+            iconColor="from-primary to-accent"
+          />
+          <StatsCard
+            title="Parte de Magnate"
+            value={formatARS(commissions?.magnateTotal)}
+            change="Este mes"
+            changeType="neutral"
+            icon={Landmark}
+            iconColor="from-info to-info"
+          />
+          <StatsCard
+            title="Parte de distribuidores"
+            value={formatARS(commissions?.distributorTotal)}
+            change="Este mes"
+            changeType="neutral"
+            icon={Handshake}
+            iconColor="from-success/80 to-success"
+          />
+        </Link>
 
         {/* Transacciones Recientes */}
         <div className="space-y-4">
